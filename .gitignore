@@ -10,6 +10,15 @@
 !.yarn/releases
 !.yarn/versions
 
+
+# AI & Agent Context Files
+.agents/rules/project-context2.md
+.agents/rules/project-context.md
+AGENTS.md
+gemini.md
+supabase.md
+CLAUDE.md
+
 # testing
 /coverage
 

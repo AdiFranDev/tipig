@@ -1,0 +1,11 @@
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\.agents\rules\project-context.md
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\.agents\rules\project-context2.md
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\AGENTS.md
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\CLAUDE.md
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\README.md
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\gemini.md
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\public\file.svg
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\public\globe.svg
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\public\next.svg
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\public\vercel.svg
+C:\Users\Adrian\OneDrive\Desktop\Projects\tipig\public\window.svg
