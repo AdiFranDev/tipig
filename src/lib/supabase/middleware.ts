@@ -27,8 +27,21 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Fetch the current user session
-  const { data: { user } } = await supabase.auth.getUser()
+  // Fetch the current user session. A stale/invalid refresh token cookie
+  // (e.g. from an old session) makes this throw instead of returning an
+  // error, which would otherwise crash the request with a 500.
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    // Clear the broken cookie so it doesn't fail again on every request.
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignore
+    }
+  }
 
   // Define route logic
   const isLoginPage = request.nextUrl.pathname.startsWith('/login')
