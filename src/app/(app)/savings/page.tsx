@@ -46,10 +46,10 @@ export default async function SavingsPage() {
   const totalSaved = activeGoals.reduce((sum, g) => sum + g.saved_amount, 0)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 w-full">
       <h1 className="text-2xl font-semibold text-foreground">Savings Goals</h1>
 
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Saved Money</CardTitle>
         </CardHeader>
@@ -71,7 +71,7 @@ export default async function SavingsPage() {
       ))}
 
       {archivedGoals.length > 0 && (
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Archived
@@ -92,7 +92,7 @@ export default async function SavingsPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Add Savings Goal</CardTitle>
         </CardHeader>
@@ -135,7 +135,7 @@ function GoalCard({ goal }: Readonly<{ goal: SavingsGoalBalance }>) {
   const archiveWithId = archiveSavingsGoal.bind(null, goal.savings_goal_id)
 
   return (
-    <Card className="group">
+    <Card className="group w-full">
       <CardContent className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Link

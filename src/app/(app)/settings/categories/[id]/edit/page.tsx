@@ -5,13 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { EnumSelectValue } from "@/components/enum-select-value"
 import { updateCategory } from "../../../actions"
 
 export default async function EditCategoryPage({
@@ -48,7 +43,7 @@ export default async function EditCategoryPage({
               <Label htmlFor="category_type">Type</Label>
               <Select name="category_type" defaultValue={category.category_type}>
                 <SelectTrigger id="category_type" className="w-full">
-                  <SelectValue />
+                  <EnumSelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="INCOME">Income</SelectItem>
@@ -63,7 +58,7 @@ export default async function EditCategoryPage({
                 defaultValue={category.default_expense_classification ?? "NEED"}
               >
                 <SelectTrigger id="default_expense_classification" className="w-full">
-                  <SelectValue />
+                  <EnumSelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="NEED">Need</SelectItem>

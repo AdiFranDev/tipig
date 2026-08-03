@@ -21,14 +21,13 @@ This project pins `next@16.2.12`. Treat this as potentially different from train
 
 **Stack:** Next.js App Router + TypeScript, Tailwind CSS v4, Supabase (PostgreSQL + Auth), deployed to Vercel. Single-user app — auth is strictly locked to one email.
 
-**Auth Flow:** (Supabase Auth via email magic link, restricted to one address — no Google OAuth, no passwords)
+**Auth Flow:** (Supabase Auth via email + secret key, restricted to one address — no Google OAuth, no magic link)
 - `src/proxy.ts` (Next.js 16 renamed `middleware.ts` to `proxy.ts`) delegates to `src/lib/supabase/middleware.ts` (`updateSession`), which runs on every request except static assets. It refreshes the Supabase session from cookies and enforces the single-user rule: if the authenticated user's email doesn't match `process.env.ALLOWED_EMAIL`, it signs them out and redirects to `/login?error=unauthorized`.
-- `src/app/login/page.tsx` is a server component with a single button; `src/app/login/actions.ts` is a Server Action (`sendMagicLink`) that reads `ALLOWED_EMAIL` server-side (never sent to the client) and calls `supabase.auth.signInWithOtp`. There is no email input — the target address is not user-supplied, so there's nothing to validate or restrict at that boundary.
-- `src/app/auth/callback/route.ts` exchanges the magic-link code for a session using the server client (`src/lib/supabase/server.ts`) — same PKCE `?code=` exchange Supabase uses for OAuth, so this route needed no changes when switching auth methods.
+- `src/app/login/page.tsx` is a server component that renders `src/app/login/login-form.tsx`, a client component with an email input and a secret-key input (`type="password"`). Submitting calls the Server Action `login` in `src/app/login/actions.ts`, which compares the submitted email/key against `process.env.ALLOWED_EMAIL`/`process.env.SECRET_KEY` (server-side only, never sent to the client) and, on a match, calls `supabase.auth.signInWithPassword` (the Supabase user's password is the secret key — set directly on `auth.users` via SQL, not through a signup flow). A child component reads `useFormStatus()` to swap the form for a loading state while the action is pending.
 - `src/lib/supabase/{client,server,middleware}.ts` are three distinct client constructors following `@supabase/ssr` patterns. Do not collapse them into one.
 - Server Components that need auth independently call `supabase.auth.getUser()` and `redirect('/login')` as defense-in-depth on top of the middleware.
 
-**Env Vars (`.env.local`, gitignored):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ALLOWED_EMAIL`.
+**Env Vars (`.env.local`, gitignored):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ALLOWED_EMAIL`, `SECRET_KEY`.
 
 ## Product Model & Non-Negotiable Domain Rules
 

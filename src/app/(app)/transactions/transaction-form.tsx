@@ -99,7 +99,7 @@ export function TransactionForm({
           onValueChange={(v) => setType(v as TransactionType)}
         >
           <SelectTrigger id="type" className="w-full">
-            <SelectValue />
+            <SelectValue>{(v: TransactionType) => formatEnumLabel(v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {TRANSACTION_TYPES.map((t) => (
@@ -210,7 +210,7 @@ export function TransactionForm({
               defaultValue={defaults?.expense_classification ?? "NEED"}
             >
               <SelectTrigger id="expense_classification" className="w-full">
-                <SelectValue />
+                <SelectValue>{(v: ExpenseClassification) => formatEnumLabel(v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {EXPENSE_CLASSIFICATIONS.map((c) => (
@@ -229,7 +229,7 @@ export function TransactionForm({
               onValueChange={(v) => setFundingSource(v as FundingSource)}
             >
               <SelectTrigger id="funding_source" className="w-full">
-                <SelectValue />
+                <SelectValue>{(v: FundingSource) => formatEnumLabel(v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {FUNDING_SOURCES.map((f) => (

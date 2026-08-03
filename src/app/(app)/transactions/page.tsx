@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { EnumSelectValue } from "@/components/enum-select-value"
 import { TransactionForm } from "./transaction-form"
 import { createTransaction, deleteTransaction } from "./actions"
 
@@ -158,7 +159,7 @@ export default async function TransactionsPage({
                 </div>
                 <Select name="type" defaultValue={typeFilter ?? "ALL"}>
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <EnumSelectValue allLabel="All Types" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Types</SelectItem>
@@ -171,7 +172,7 @@ export default async function TransactionsPage({
                 </Select>
                 <Select name="bucket" defaultValue={bucketFilter ?? "ALL"}>
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <EnumSelectValue allLabel="Needs & Wants" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">Needs &amp; Wants</SelectItem>

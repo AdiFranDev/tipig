@@ -7,13 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { EnumSelectValue } from "@/components/enum-select-value"
 import { formatPHP, formatEnumLabel } from "@/lib/format"
 import { monthlyAllowance, coveredMonthRange, type ScholarshipAllocation } from "@/lib/scholarship"
 import {
@@ -53,7 +48,7 @@ export default async function SettingsPage() {
   const scholarships = (scholarshipsData ?? []) as ScholarshipAllocation[]
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 w-full">
+    <div className="max-w-4xl mx-auto space-y-8 w-full">
       <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
 
       <Card className="w-full">
@@ -86,7 +81,7 @@ export default async function SettingsPage() {
               <Label htmlFor="category_type">Type</Label>
               <Select name="category_type" defaultValue="EXPENSE">
                 <SelectTrigger id="category_type" className="w-full">
-                  <SelectValue />
+                  <EnumSelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="INCOME">{formatEnumLabel("INCOME")}</SelectItem>
@@ -98,7 +93,7 @@ export default async function SettingsPage() {
               <Label htmlFor="default_expense_classification">Default Needs/Wants</Label>
               <Select name="default_expense_classification" defaultValue="NEED">
                 <SelectTrigger id="default_expense_classification" className="w-full">
-                  <SelectValue />
+                  <EnumSelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="NEED">{formatEnumLabel("NEED")}</SelectItem>

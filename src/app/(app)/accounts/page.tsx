@@ -14,13 +14,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { AccountTypeSelectValue } from "@/components/enum-select-value"
 import { Badge } from "@/components/ui/badge"
 
 export default async function AccountsPage() {
@@ -42,7 +37,7 @@ export default async function AccountsPage() {
   const physical = accounts.filter((a) => isPhysicalAccount(a.account_type))
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 w-full">
+    <div className="max-w-4xl mx-auto space-y-8 w-full">
       <h1 className="text-2xl font-semibold text-foreground">Accounts</h1>
 
       {error && (
@@ -68,7 +63,7 @@ export default async function AccountsPage() {
               <Label htmlFor="account_type">Type</Label>
               <Select name="account_type" defaultValue="DIGITAL_BANK">
                 <SelectTrigger id="account_type" className="w-full">
-                  <SelectValue />
+                  <AccountTypeSelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {ACCOUNT_TYPES.map((t) => (
