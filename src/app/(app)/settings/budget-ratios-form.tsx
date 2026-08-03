@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useActionToast } from "@/hooks/use-action-toast"
 import { updateBudgetRatios } from "./actions"
 
 export function BudgetRatiosForm({
@@ -14,12 +15,13 @@ export function BudgetRatiosForm({
   const [needs, setNeeds] = useState(initialNeeds)
   const [wants, setWants] = useState(initialWants)
   const [savings, setSavings] = useState(initialSavings)
+  const [formAction] = useActionToast(updateBudgetRatios, "Budget targets saved")
 
   const total = Math.round((needs + wants + savings) * 100) / 100
   const isValid = total === 100
 
   return (
-    <form action={updateBudgetRatios} className="space-y-3">
+    <form action={formAction} className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="needs_target_percentage">Needs %</Label>

@@ -21,11 +21,11 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
-import { EnumSelectValue } from "@/components/enum-select-value"
+import { EnumSelectValue, NamedSelectValue } from "@/components/enum-select-value"
 import { TransactionForm } from "./transaction-form"
 import { createTransaction, deleteTransaction } from "./actions"
+import { ActionForm } from "@/components/action-form"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -185,7 +185,7 @@ export default async function TransactionsPage({
                 </Select>
                 <Select name="category" defaultValue={categoryFilter ?? "ALL"}>
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <NamedSelectValue items={categories} extra={{ value: "ALL", label: "All Categories" }} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Categories</SelectItem>
@@ -198,7 +198,7 @@ export default async function TransactionsPage({
                 </Select>
                 <Select name="account" defaultValue={accountFilter ?? "ALL"}>
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <NamedSelectValue items={accounts} extra={{ value: "ALL", label: "All Accounts" }} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Accounts</SelectItem>
@@ -288,11 +288,11 @@ function TransactionRow({ transaction: t }: Readonly<{ transaction: TransactionD
         {sign > 0 ? "+" : sign < 0 ? "-" : ""}
         {formatPHP(t.amount)}
       </span>
-      <form action={deleteWithId}>
+      <ActionForm action={deleteWithId} successMessage="Transaction deleted">
         <Button variant="ghost" size="icon-sm" type="submit" aria-label="Delete transaction">
           ×
         </Button>
-      </form>
+      </ActionForm>
     </div>
   )
 }

@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
 import { Landmark, Building2, Wallet, Banknote, Coins } from "lucide-react"
 import { formatPHP } from "@/lib/format"
@@ -16,8 +15,10 @@ import { isPhysicalAccount, type AccountBalance, type AccountType } from "@/lib/
 import type { SavingsGoalBalance } from "@/lib/savings"
 import { currentMonth, monthRange, aggregateByType } from "@/lib/transactions"
 import { QUICK_ENTRIES } from "@/lib/quick-entries"
-import { sweepMonth, quickCoinsExpense } from "./actions"
+import { NamedSelectValue } from "@/components/enum-select-value"
+import { sweepMonth, quickCoinsExpense } from "@/actions/transactions"
 import { MonthlyBarChart } from "./monthly-bar-chart"
+import { ActionForm } from "@/components/action-form"
 
 function monthLabel(month: string) {
   const [year, mon] = month.split("-").map(Number)
@@ -141,19 +142,22 @@ export default async function DashboardOverview({
           <CardHeader>
             <CardTitle>Monthly Review</CardTitle>
             <CardDescription>
-              {formatPHP(monthlyRemaining)} from {monthLabel(month)} hasn&apos;t been swept into
+              {formatPHP(monthlyRemaining)} from {monthLabel(month)} has not been swept into
               savings yet. Sweep it now, or leave it — it&apos;ll simply carry forward as
               Available to Spend.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={sweepMonth} className="flex flex-wrap items-end gap-3">
+            <ActionForm action={sweepMonth} className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="month" value={month} />
               <div className="space-y-1.5">
                 <Label htmlFor="account_id">From Account</Label>
                 <Select name="account_id">
                   <SelectTrigger id="account_id" className="w-40">
-                    <SelectValue placeholder="Account" />
+                    <NamedSelectValue
+                      items={activeAccounts.map((a) => ({ id: a.account_id, name: a.name }))}
+                      placeholder="Account"
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {activeAccounts.map((a) => (
@@ -168,7 +172,10 @@ export default async function DashboardOverview({
                 <Label htmlFor="target">Sweep To</Label>
                 <Select name="target" defaultValue="UNALLOCATED">
                   <SelectTrigger id="target" className="w-48">
-                    <SelectValue />
+                    <NamedSelectValue
+                      items={goals.filter((g) => !g.is_unallocated).map((g) => ({ id: g.savings_goal_id, name: g.name }))}
+                      extra={{ value: "UNALLOCATED", label: "Unallocated Savings" }}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="UNALLOCATED">Unallocated Savings</SelectItem>
@@ -183,7 +190,7 @@ export default async function DashboardOverview({
                 </Select>
               </div>
               <Button type="submit">Sweep {formatPHP(monthlyRemaining)}</Button>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
       )}
@@ -195,14 +202,14 @@ export default async function DashboardOverview({
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {QUICK_ENTRIES.map((q) => (
-            <form key={q.label} action={quickCoinsExpense}>
+            <ActionForm key={q.label} action={quickCoinsExpense}>
               <input type="hidden" name="label" value={q.label} />
               <input type="hidden" name="category_name" value={q.categoryName} />
               <input type="hidden" name="amount" value={q.defaultAmount} />
               <Button type="submit" variant="outline" className="h-auto w-full py-2 whitespace-normal">
                 Log ₱{q.defaultAmount} {q.label}
               </Button>
-            </form>
+            </ActionForm>
           ))}
         </CardContent>
       </Card>

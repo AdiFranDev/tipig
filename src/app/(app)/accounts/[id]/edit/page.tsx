@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { AccountTypeSelectValue } from "@/components/enum-select-value"
+import { ActionForm } from "@/components/action-form"
 
 export default async function EditAccountPage({
   params,
@@ -35,7 +36,7 @@ export default async function EditAccountPage({
           <CardTitle>{account.name}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={updateAccountWithId} className="space-y-4">
+          <ActionForm action={updateAccountWithId} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" required defaultValue={account.name} />
@@ -62,7 +63,7 @@ export default async function EditAccountPage({
             <Button type="submit" className="w-full">
               Save Changes
             </Button>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>

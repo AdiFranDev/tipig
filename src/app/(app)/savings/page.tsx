@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { createSavingsGoal, archiveSavingsGoal } from "./actions"
 import { Pencil, Trash2 } from "lucide-react"
+import { ActionForm } from "@/components/action-form"
 
 export default async function SavingsPage() {
   const supabase = await createClient()
@@ -32,18 +33,8 @@ export default async function SavingsPage() {
   const namedGoals = activeGoals.filter((g) => !g.is_unallocated)
   const archivedGoals = goals.filter((g) => !g.is_active)
 
-  const { data: percentData } = await supabase
-    .from("savings_goals")
-    .select("allocation_percentage")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .eq("is_unallocated", false)
-  const allocatedPercent = (percentData ?? []).reduce(
-    (sum, g) => sum + (g.allocation_percentage ?? 0),
-    0
-  )
-
   const totalSaved = activeGoals.reduce((sum, g) => sum + g.saved_amount, 0)
+  const splitCount = namedGoals.length
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 w-full">
@@ -58,8 +49,9 @@ export default async function SavingsPage() {
             {formatPHP(totalSaved)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {allocatedPercent}% of each new SAVINGS transaction is split across your goals below;
-            the remaining {Math.max(0, 100 - allocatedPercent)}% goes to Unallocated Savings.
+            {splitCount > 0
+              ? `Each new SAVINGS transaction splits evenly across your ${splitCount} active goal${splitCount === 1 ? "" : "s"}; any rounding remainder goes to Unallocated Savings.`
+              : "Each new SAVINGS transaction goes entirely to Unallocated Savings until you add a goal below."}
           </p>
         </CardContent>
       </Card>
@@ -97,7 +89,7 @@ export default async function SavingsPage() {
           <CardTitle>Add Savings Goal</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createSavingsGoal} className="space-y-3">
+          <ActionForm action={createSavingsGoal} successMessage="Savings goal added" className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" required placeholder="e.g. Travel Fund" />
@@ -106,22 +98,10 @@ export default async function SavingsPage() {
               <Label htmlFor="target_amount">Target Amount (optional)</Label>
               <Input id="target_amount" name="target_amount" type="number" step="0.01" min="0" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="allocation_percentage">Allocation % of each SAVINGS entry</Label>
-              <Input
-                id="allocation_percentage"
-                name="allocation_percentage"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                defaultValue="0"
-              />
-            </div>
             <Button type="submit" className="w-full">
               Add Goal
             </Button>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>
@@ -164,11 +144,11 @@ function GoalCard({ goal }: Readonly<{ goal: SavingsGoalBalance }>) {
               <Pencil />
             </Button>
             {!goal.is_unallocated && (
-              <form action={archiveWithId}>
+              <ActionForm action={archiveWithId} successMessage="Savings goal archived">
                 <Button variant="ghost" size="icon-sm" type="submit" aria-label="Archive savings goal">
                   <Trash2 />
                 </Button>
-              </form>
+              </ActionForm>
             )}
           </div>
         </div>

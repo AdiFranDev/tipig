@@ -18,11 +18,13 @@ export default async function EditTransactionPage({
   const { data: tx } = await supabase.from("transactions").select("*").eq("id", id).single()
   if (!tx) notFound()
 
-  const [{ data: accountsData }, { data: categoriesData }, { data: goalsData }] = await Promise.all([
-    supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
-    supabase.from("categories").select("*").eq("is_active", true).order("name"),
-    supabase.from("savings_goals").select("id, name").eq("is_active", true).order("name"),
-  ])
+  const [{ data: accountsData }, { data: categoriesData }, { data: goalsData }, { data: denomData }] =
+    await Promise.all([
+      supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
+      supabase.from("categories").select("*").eq("is_active", true).order("name"),
+      supabase.from("savings_goals").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("transaction_denominations").select("account_id, denomination, quantity, direction").eq("transaction_id", id),
+    ])
 
   const defaults: TransactionFormDefaults = {
     type: tx.type,
@@ -35,6 +37,7 @@ export default async function EditTransactionPage({
     funding_source: tx.funding_source ?? undefined,
     savings_goal_id: tx.savings_goal_id ?? undefined,
     description: tx.description ?? undefined,
+    denominationRows: denomData ?? [],
   }
 
   const updateWithId = updateTransaction.bind(null, tx.id)

@@ -7,18 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
-import { EnumSelectValue } from "@/components/enum-select-value"
-import { formatPHP, formatEnumLabel } from "@/lib/format"
+import { formatPHP } from "@/lib/format"
 import { monthlyAllowance, coveredMonthRange, type ScholarshipAllocation } from "@/lib/scholarship"
 import {
-  createCategory,
   archiveCategory,
+  restoreCategory,
   createScholarshipAllocation,
   deleteScholarshipAllocation,
 } from "./actions"
 import { BudgetRatiosForm } from "./budget-ratios-form"
-import { Pencil, Trash2 } from "lucide-react"
+import { AddCategoryForm } from "./add-category-form"
+import { ActionForm } from "@/components/action-form"
+import { Pencil, Trash2, RefreshCcw } from "lucide-react"
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -38,8 +38,9 @@ export default async function SettingsPage() {
     .order("name")
 
   const categories = (categoriesData ?? []) as Category[]
-  const incomeCategories = categories.filter((c) => c.category_type === "INCOME")
-  const expenseCategories = categories.filter((c) => c.category_type === "EXPENSE")
+  const incomeCategories = categories.filter((c) => c.category_type === "INCOME" && c.is_active)
+  const expenseCategories = categories.filter((c) => c.category_type === "EXPENSE" && c.is_active)
+  const archivedCategories = categories.filter((c) => !c.is_active)
 
   const { data: scholarshipsData } = await supabase
     .from("scholarship_allocations")
@@ -72,42 +73,36 @@ export default async function SettingsPage() {
           <CardTitle>Add Category</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createCategory} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" required placeholder="e.g. Subscriptions" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="category_type">Type</Label>
-              <Select name="category_type" defaultValue="EXPENSE">
-                <SelectTrigger id="category_type" className="w-full">
-                  <EnumSelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INCOME">{formatEnumLabel("INCOME")}</SelectItem>
-                  <SelectItem value="EXPENSE">{formatEnumLabel("EXPENSE")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="default_expense_classification">Default Needs/Wants</Label>
-              <Select name="default_expense_classification" defaultValue="NEED">
-                <SelectTrigger id="default_expense_classification" className="w-full">
-                  <EnumSelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NEED">{formatEnumLabel("NEED")}</SelectItem>
-                  <SelectItem value="WANT">{formatEnumLabel("WANT")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Only applies to expense categories.</p>
-            </div>
-            <Button type="submit" className="w-full">
-              Add Category
-            </Button>
-          </form>
+          <AddCategoryForm />
         </CardContent>
       </Card>
+
+      {archivedCategories.length > 0 && (
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Archived Categories
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="divide-y divide-border p-0">
+            {archivedCategories.map((c) => {
+              const restoreWithId = restoreCategory.bind(null, c.id)
+              return (
+                <div key={c.id} className="flex items-center gap-2 px-(--card-spacing) py-3">
+                  <span className="min-w-0 flex-1 text-sm font-medium text-muted-foreground truncate">
+                    {c.name}
+                  </span>
+                  <ActionForm action={restoreWithId} successMessage="Category restored">
+                    <Button variant="ghost" size="icon-sm" type="submit" aria-label="Restore category">
+                      <RefreshCcw />
+                    </Button>
+                  </ActionForm>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="w-full">
         <CardHeader>
@@ -121,7 +116,7 @@ export default async function SettingsPage() {
               ))}
             </div>
           )}
-          <form action={createScholarshipAllocation} className="space-y-3">
+          <ActionForm action={createScholarshipAllocation} successMessage="Allocation added" className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="scholarship_name">Name</Label>
               <Input
@@ -169,7 +164,7 @@ export default async function SettingsPage() {
             <Button type="submit" className="w-full">
               Add Allocation
             </Button>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>
@@ -193,11 +188,11 @@ function ScholarshipRow({
       <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
         {formatPHP(monthlyAllowance(s))}/mo
       </span>
-      <form action={deleteWithId}>
+      <ActionForm action={deleteWithId} successMessage="Allocation deleted">
         <Button variant="ghost" size="icon-sm" type="submit" aria-label="Delete allocation">
           ×
         </Button>
-      </form>
+      </ActionForm>
     </div>
   )
 }
@@ -224,10 +219,7 @@ function CategoryGroup({
                 href={`/settings/categories/${c.id}/edit`}
                 className="min-w-0 flex-1 flex items-center justify-between gap-3 hover:opacity-80"
               >
-                <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                  {c.name}
-                  {!c.is_active && <Badge variant="secondary">Archived</Badge>}
-                </span>
+                <span className="text-sm font-medium text-foreground">{c.name}</span>
                 {c.default_expense_classification && (
                   <Badge variant="outline">{c.default_expense_classification}</Badge>
                 )}
@@ -242,13 +234,11 @@ function CategoryGroup({
                 >
                   <Pencil />
                 </Button>
-                {c.is_active && (
-                  <form action={archiveWithId}>
-                    <Button variant="ghost" size="icon-sm" type="submit" aria-label="Archive category">
-                      <Trash2 />
-                    </Button>
-                  </form>
-                )}
+                <ActionForm action={archiveWithId} successMessage="Category archived">
+                  <Button variant="ghost" size="icon-sm" type="submit" aria-label="Archive category">
+                    <Trash2 />
+                  </Button>
+                </ActionForm>
               </div>
             </div>
           )

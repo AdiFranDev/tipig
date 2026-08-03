@@ -8,15 +8,15 @@ import {
   type AccountBalance,
 } from "@/lib/accounts"
 import { formatPHP } from "@/lib/format"
-import { createAccount, archiveAccount } from "./actions"
-import { Pencil, Trash2 } from "lucide-react"
+import { createAccount, archiveAccount, restoreAccount } from "./actions"
+import { Pencil, Trash2, RefreshCcw } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { AccountTypeSelectValue } from "@/components/enum-select-value"
-import { Badge } from "@/components/ui/badge"
+import { ActionForm } from "@/components/action-form"
 
 export default async function AccountsPage() {
   const supabase = await createClient()
@@ -33,8 +33,10 @@ export default async function AccountsPage() {
     .order("name")
 
   const accounts = (data ?? []) as AccountBalance[]
-  const digital = accounts.filter((a) => !isPhysicalAccount(a.account_type))
-  const physical = accounts.filter((a) => isPhysicalAccount(a.account_type))
+  const activeAccounts = accounts.filter((a) => a.is_active)
+  const digital = activeAccounts.filter((a) => !isPhysicalAccount(a.account_type))
+  const physical = activeAccounts.filter((a) => isPhysicalAccount(a.account_type))
+  const archivedAccounts = accounts.filter((a) => !a.is_active)
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 w-full">
@@ -49,12 +51,39 @@ export default async function AccountsPage() {
       <AccountGroup title="Digital Accounts" accounts={digital} />
       <AccountGroup title="Physical Accounts" accounts={physical} />
 
+      {archivedAccounts.length > 0 && (
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Archived Accounts
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="divide-y divide-border p-0">
+            {archivedAccounts.map((a) => {
+              const restoreWithId = restoreAccount.bind(null, a.account_id)
+              return (
+                <div key={a.account_id} className="flex items-center gap-2 px-(--card-spacing) py-3">
+                  <span className="min-w-0 flex-1 text-sm font-medium text-muted-foreground truncate">
+                    {a.name}
+                  </span>
+                  <ActionForm action={restoreWithId} successMessage="Account restored">
+                    <Button variant="ghost" size="icon-sm" type="submit" aria-label="Restore account">
+                      <RefreshCcw />
+                    </Button>
+                  </ActionForm>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Add Account</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createAccount} className="space-y-3">
+          <ActionForm action={createAccount} successMessage="Account added" className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" required placeholder="e.g. BPI" />
@@ -88,7 +117,7 @@ export default async function AccountsPage() {
             <Button type="submit" className="w-full">
               Add Account
             </Button>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>
@@ -121,10 +150,7 @@ function AccountGroup({
                 className="min-w-0 flex-1 flex items-center justify-between gap-3 hover:opacity-80"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate flex items-center gap-2">
-                    {a.name}
-                    {!a.is_active && <Badge variant="secondary">Archived</Badge>}
-                  </p>
+                  <p className="text-sm font-medium text-foreground truncate">{a.name}</p>
                   <p className="text-xs text-muted-foreground">{accountTypeLabel(a.account_type)}</p>
                 </div>
                 <span
@@ -155,13 +181,11 @@ function AccountGroup({
                 >
                   <Pencil />
                 </Button>
-                {a.is_active && (
-                  <form action={archiveWithId}>
-                    <Button variant="ghost" size="icon-sm" type="submit" aria-label="Archive account">
-                      <Trash2 />
-                    </Button>
-                  </form>
-                )}
+                <ActionForm action={archiveWithId} successMessage="Account archived">
+                  <Button variant="ghost" size="icon-sm" type="submit" aria-label="Archive account">
+                    <Trash2 />
+                  </Button>
+                </ActionForm>
               </div>
             </div>
           )

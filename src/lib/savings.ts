@@ -33,33 +33,25 @@ export type SavingsGoal = {
   is_active: boolean
 }
 
-export type SavingsSplitGoal = { id: string; allocation_percentage: number | null }
-
 /**
- * Splits a SAVINGS transaction across goals by their configured percentage.
- * Whatever a goal's share rounds down to, plus any percentage nobody
- * claimed, plus the leftover cent from rounding, all lands on the
- * Unallocated goal in one shot — so nothing is ever silently dropped.
+ * Splits a SAVINGS transaction evenly across active goals. Each goal's
+ * share is floored to the nearest centavo (never rounded up), so the
+ * leftover — including any remainder from an uneven division — always
+ * lands on the Unallocated goal and the math balances exactly.
  */
 export function computeSavingsSplit(
   amount: number,
-  goals: SavingsSplitGoal[],
+  activeGoalIds: string[],
   unallocatedGoalId: string
 ): { savings_goal_id: string; amount: number }[] {
-  const result: { savings_goal_id: string; amount: number }[] = []
-  let allocated = 0
-
-  for (const g of goals) {
-    const pct = g.allocation_percentage ?? 0
-    if (pct <= 0) continue
-    const share = Math.round(amount * (pct / 100) * 100) / 100
-    if (share > 0) {
-      result.push({ savings_goal_id: g.id, amount: share })
-      allocated += share
-    }
+  if (activeGoalIds.length === 0) {
+    return [{ savings_goal_id: unallocatedGoalId, amount }]
   }
 
-  const remainder = Math.round((amount - allocated) * 100) / 100
+  const share = Math.floor((amount / activeGoalIds.length) * 100) / 100
+  const result = activeGoalIds.map((id) => ({ savings_goal_id: id, amount: share }))
+
+  const remainder = Math.round((amount - share * activeGoalIds.length) * 100) / 100
   if (remainder > 0) {
     result.push({ savings_goal_id: unallocatedGoalId, amount: remainder })
   }

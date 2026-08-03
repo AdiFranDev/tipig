@@ -51,3 +51,12 @@ export type AccountBalance = {
   is_active: boolean
   balance: number
 }
+
+/** The Hard Floor: blocks an EXPENSE/SAVINGS that would exceed the account's current balance. */
+export function assertSufficientBalance(balance: number, amount: number, accountName: string) {
+  if (amount > balance) {
+    throw new Error(
+      `Insufficient funds in ${accountName} (available ₱${balance.toFixed(2)}, needed ₱${amount.toFixed(2)})`
+    )
+  }
+}

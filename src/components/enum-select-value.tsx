@@ -22,3 +22,25 @@ export function EnumSelectValue({ allLabel }: Readonly<{ allLabel?: string }> = 
 export function AccountTypeSelectValue() {
   return <SelectValue>{(v: AccountType) => accountTypeLabel(v)}</SelectValue>
 }
+
+/**
+ * Same fix as above, for selects whose options are database rows (id/name)
+ * rather than enum values — Accounts, Categories, Savings Goals.
+ */
+export function NamedSelectValue({
+  items,
+  extra,
+  placeholder,
+}: Readonly<{
+  items: readonly { id: string; name: string }[]
+  extra?: { value: string; label: string }
+  placeholder?: string
+}>) {
+  return (
+    <SelectValue>
+      {(v: string) =>
+        extra && v === extra.value ? extra.label : items.find((i) => i.id === v)?.name ?? placeholder ?? ""
+      }
+    </SelectValue>
+  )
+}

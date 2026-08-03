@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { EnumSelectValue } from "@/components/enum-select-value"
 import { updateCategory } from "../../../actions"
+import { ActionForm } from "@/components/action-form"
 
 export default async function EditCategoryPage({
   params,
@@ -34,7 +35,7 @@ export default async function EditCategoryPage({
           <CardTitle>{category.name}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={updateWithId} className="space-y-4">
+          <ActionForm action={updateWithId} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" required defaultValue={category.name} />
@@ -74,7 +75,7 @@ export default async function EditCategoryPage({
             <Button type="submit" className="w-full">
               Save Changes
             </Button>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>

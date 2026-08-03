@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { reconcilePhysicalCash } from "../../actions"
+import { ActionForm } from "@/components/action-form"
 
 export default async function ReconcileAccountPage({
   params,
@@ -47,7 +48,7 @@ export default async function ReconcileAccountPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={reconcileWithId} className="space-y-4">
+          <ActionForm action={reconcileWithId} className="space-y-4">
             <div className="grid grid-cols-3 gap-3 text-xs font-medium text-muted-foreground">
               <span>Denomination</span>
               <span>Recorded</span>
@@ -77,7 +78,7 @@ export default async function ReconcileAccountPage({
             <Button type="submit" className="w-full">
               Reconcile
             </Button>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>

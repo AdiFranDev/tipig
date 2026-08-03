@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatPHP } from "@/lib/format"
 import { denominationFieldName } from "@/lib/denominations"
 
-function useQuantities(denominations: readonly number[]) {
-  const [quantities, setQuantities] = useState<Record<number, number>>({})
+function useQuantities(denominations: readonly number[], initial?: Record<number, number>) {
+  const [quantities, setQuantities] = useState<Record<number, number>>(() => initial ?? {})
   const total = denominations.reduce((sum, d) => sum + (quantities[d] ?? 0) * d, 0)
   return { quantities, setQuantities, total }
 }
@@ -25,6 +25,11 @@ function DenominationGrid({
   quantities: Record<number, number>
   onChange: (denomination: number, qty: number) => void
 }>) {
+  // Captured once on mount — `defaultValue` must never change after an
+  // uncontrolled input is initialized, unlike `quantities` (which updates
+  // live on every keystroke, driving the Total text below).
+  const [initialQuantities] = useState(quantities)
+
   return (
     <fieldset className="space-y-2">
       <legend className="text-xs font-medium text-muted-foreground">{legend}</legend>
@@ -40,7 +45,7 @@ function DenominationGrid({
               type="number"
               min="0"
               step="1"
-              defaultValue={0}
+              defaultValue={initialQuantities[d] ?? 0}
               onChange={(e) => onChange(d, Number(e.target.value) || 0)}
             />
           </div>
@@ -53,15 +58,44 @@ function DenominationGrid({
   )
 }
 
-/** "Direct Payments & Change" — Handed Over minus the expense must equal Change. */
+/**
+ * "Direct Payments & Change" — Handed Over minus the expense must equal
+ * Change. Change can come back in the *other* physical account's
+ * denominations too (e.g. coins as change for a Paper Cash payment) — those
+ * rows post to that other account, not this one, so a second grid only
+ * renders when the user has an active complementary physical account.
+ */
 export function ExpenseDenominationFields({
   denominations,
   amount,
-}: Readonly<{ denominations: readonly number[]; amount: number }>) {
-  const handedOver = useQuantities(denominations)
-  const change = useQuantities(denominations)
+  initialHandedOver,
+  initialChange,
+  otherDenominations,
+  otherAccountLabel,
+  initialChangeOther,
+  onValidityChange,
+}: Readonly<{
+  denominations: readonly number[]
+  amount: number
+  initialHandedOver?: Record<number, number>
+  initialChange?: Record<number, number>
+  otherDenominations?: readonly number[]
+  otherAccountLabel?: string
+  initialChangeOther?: Record<number, number>
+  onValidityChange?: (valid: boolean) => void
+}>) {
+  const handedOver = useQuantities(denominations, initialHandedOver)
+  const changeOwn = useQuantities(denominations, initialChange)
+  const changeOther = useQuantities(otherDenominations ?? [], initialChangeOther)
+  const changeTotal = Math.round((changeOwn.total + changeOther.total) * 100) / 100
   const expected = Math.round((handedOver.total - amount) * 100) / 100
-  const matches = Math.abs(expected - change.total) < 0.001
+  const insufficient = handedOver.total < amount
+  const changeMatches = Math.abs(expected - changeTotal) < 0.001
+  const valid = !insufficient && changeMatches
+
+  useEffect(() => {
+    onValidityChange?.(valid)
+  }, [valid, onValidityChange])
 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
@@ -77,14 +111,76 @@ export function ExpenseDenominationFields({
         legend="Change Received"
         prefix="change"
         denominations={denominations}
-        quantities={change.quantities}
-        onChange={(d, qty) => change.setQuantities((q) => ({ ...q, [d]: qty }))}
+        quantities={changeOwn.quantities}
+        onChange={(d, qty) => changeOwn.setQuantities((q) => ({ ...q, [d]: qty }))}
       />
-      <p className={`text-xs ${matches ? "text-muted-foreground" : "text-destructive"}`}>
-        {matches
-          ? "Handed over − expense = change. ✓"
-          : `Handed over (${formatPHP(handedOver.total)}) − expense (${formatPHP(amount)}) should equal change — expected ${formatPHP(expected)}, got ${formatPHP(change.total)}.`}
-      </p>
+      {otherDenominations && otherDenominations.length > 0 && (
+        <DenominationGrid
+          legend={`Change Received (${otherAccountLabel ?? "other"})`}
+          prefix="change_other"
+          denominations={otherDenominations}
+          quantities={changeOther.quantities}
+          onChange={(d, qty) => changeOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+        />
+      )}
+      {insufficient ? (
+        <p className="text-xs text-destructive">
+          Handed over ({formatPHP(handedOver.total)}) is less than the expense ({formatPHP(amount)}) —
+          hand over enough to cover it.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">Change Due: {formatPHP(expected)}</p>
+          {changeMatches ? (
+            <p className="text-xs text-muted-foreground">✓ Handed over − expense = change.</p>
+          ) : (
+            <p className="text-xs text-destructive">
+              Change received doesn&apos;t match — expected {formatPHP(expected)}, got{" "}
+              {formatPHP(changeTotal)}.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Physical INCOME — the denomination breakdown of exactly what was received. */
+export function IncomeDenominationFields({
+  denominations,
+  amount,
+  initialReceived,
+  onValidityChange,
+}: Readonly<{
+  denominations: readonly number[]
+  amount: number
+  initialReceived?: Record<number, number>
+  onValidityChange?: (valid: boolean) => void
+}>) {
+  const received = useQuantities(denominations, initialReceived)
+  const valid = Math.abs(received.total - amount) < 0.001
+
+  useEffect(() => {
+    onValidityChange?.(valid)
+  }, [valid, onValidityChange])
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <p className="text-sm font-medium text-foreground">Physical Cash Received</p>
+      <DenominationGrid
+        legend="Received"
+        prefix="received"
+        denominations={denominations}
+        quantities={received.quantities}
+        onChange={(d, qty) => received.setQuantities((q) => ({ ...q, [d]: qty }))}
+      />
+      {valid ? (
+        <p className="text-xs text-muted-foreground">✓ Matches the income amount.</p>
+      ) : (
+        <p className="text-xs text-destructive">
+          Doesn&apos;t match the income amount ({formatPHP(amount)}) — got {formatPHP(received.total)}.
+        </p>
+      )}
     </div>
   )
 }
@@ -94,14 +190,26 @@ export function BreakingBillsFields({
   sourceDenominations,
   destDenominations,
   amount,
+  initialOut,
+  initialIn,
+  onValidityChange,
 }: Readonly<{
   sourceDenominations: readonly number[]
   destDenominations: readonly number[]
   amount: number
+  initialOut?: Record<number, number>
+  initialIn?: Record<number, number>
+  onValidityChange?: (valid: boolean) => void
 }>) {
-  const out = useQuantities(sourceDenominations)
-  const inn = useQuantities(destDenominations)
-  const matches = Math.abs(out.total - amount) < 0.001 && Math.abs(inn.total - amount) < 0.001
+  const out = useQuantities(sourceDenominations, initialOut)
+  const inn = useQuantities(destDenominations, initialIn)
+  const outMatches = Math.abs(out.total - amount) < 0.001
+  const inMatches = Math.abs(inn.total - amount) < 0.001
+  const valid = outMatches && inMatches
+
+  useEffect(() => {
+    onValidityChange?.(valid)
+  }, [valid, onValidityChange])
 
   return (
     <div className="space-y-3 rounded-lg border border-border p-3">
@@ -120,11 +228,24 @@ export function BreakingBillsFields({
         quantities={inn.quantities}
         onChange={(d, qty) => inn.setQuantities((q) => ({ ...q, [d]: qty }))}
       />
-      <p className={`text-xs ${matches ? "text-muted-foreground" : "text-destructive"}`}>
-        {matches
-          ? "Both sides match the transfer amount. ✓"
-          : `Both sides must total the transfer amount (${formatPHP(amount)}).`}
-      </p>
+      {valid ? (
+        <p className="text-xs text-muted-foreground">✓ Both sides match the transfer amount.</p>
+      ) : (
+        <>
+          {!outMatches && (
+            <p className="text-xs text-destructive">
+              Take Out doesn&apos;t match the transfer amount ({formatPHP(amount)}) — got{" "}
+              {formatPHP(out.total)}.
+            </p>
+          )}
+          {!inMatches && (
+            <p className="text-xs text-destructive">
+              Put In doesn&apos;t match the transfer amount ({formatPHP(amount)}) — got{" "}
+              {formatPHP(inn.total)}.
+            </p>
+          )}
+        </>
+      )}
     </div>
   )
 }

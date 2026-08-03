@@ -23,7 +23,10 @@ import type { Category } from "@/lib/categories"
 import { isPhysicalAccount, type AccountOption } from "@/lib/accounts"
 import { formatEnumLabel } from "@/lib/format"
 import { denominationsFor } from "@/lib/denominations"
-import { ExpenseDenominationFields, BreakingBillsFields } from "./denomination-fields"
+import { ExpenseDenominationFields, IncomeDenominationFields, BreakingBillsFields } from "./denomination-fields"
+import { NamedSelectValue } from "@/components/enum-select-value"
+import { useActionToast } from "@/hooks/use-action-toast"
+import type { ActionResult } from "@/lib/action-result"
 
 type SavingsGoalOption = { id: string; name: string }
 
@@ -38,6 +41,24 @@ export type TransactionFormDefaults = {
   funding_source?: FundingSource
   savings_goal_id?: string
   description?: string
+  denominationRows?: { account_id: string; denomination: number; quantity: number; direction: "IN" | "OUT" }[]
+}
+
+/**
+ * Filters existing denomination rows down to one account+direction —
+ * account_id matters now that an EXPENSE's change can span two accounts
+ * (Coin Pouch change for a Paper Cash payment), so direction alone is no
+ * longer enough to tell "this account's change" from "the other account's".
+ */
+function quantitiesFor(
+  rows: TransactionFormDefaults["denominationRows"],
+  accountId: string | undefined,
+  direction: "IN" | "OUT"
+): Record<number, number> | undefined {
+  if (!rows || !accountId) return undefined
+  const filtered = rows.filter((r) => r.account_id === accountId && r.direction === direction)
+  if (filtered.length === 0) return undefined
+  return Object.fromEntries(filtered.map((r) => [r.denomination, r.quantity]))
 }
 
 export function TransactionForm({
@@ -51,10 +72,11 @@ export function TransactionForm({
   accounts: AccountOption[]
   categories: Category[]
   savingsGoals: SavingsGoalOption[]
-  action: (formData: FormData) => void | Promise<void>
+  action: (formData: FormData) => Promise<ActionResult>
   defaults?: TransactionFormDefaults
   submitLabel?: string
 }>) {
+  const [formAction] = useActionToast(action, defaults ? "Transaction saved" : "Transaction added")
   const [type, setType] = useState<TransactionType>(defaults?.type ?? "EXPENSE")
   const [fundingSource, setFundingSource] = useState<FundingSource>(
     defaults?.funding_source ?? "AVAILABLE_MONEY"
@@ -64,6 +86,9 @@ export function TransactionForm({
     defaults?.destination_account_id ?? ""
   )
   const [amount, setAmount] = useState(defaults?.amount ?? 0)
+  // Not proven valid until a physical breakdown component reports in — the
+  // safer default for a money-integrity gate (see submit button below).
+  const [physicalValid, setPhysicalValid] = useState(false)
 
   const relevantCategories = categories.filter((c) =>
     type === "INCOME" ? c.category_type === "INCOME" : c.category_type === "EXPENSE"
@@ -71,26 +96,37 @@ export function TransactionForm({
 
   const selectedAccount = accounts.find((a) => a.id === accountId)
   const selectedDestAccount = accounts.find((a) => a.id === destinationAccountId)
-  // Physical cash ledger entries are only recorded when a transaction is
-  // first created — corrections happen via a new adjustment transaction,
-  // not by editing old denomination entries (see project spec: physical
-  // reconciliation requires an explicit Physical Adjustment transaction).
-  const isEdit = Boolean(defaults)
   const showExpenseDenoms =
-    !isEdit &&
-    type === "EXPENSE" &&
-    !!selectedAccount &&
-    isPhysicalAccount(selectedAccount.account_type)
+    type === "EXPENSE" && !!selectedAccount && isPhysicalAccount(selectedAccount.account_type)
+  const showIncomeDenoms =
+    type === "INCOME" && !!selectedAccount && isPhysicalAccount(selectedAccount.account_type)
   const showBreakingBills =
-    !isEdit &&
     type === "TRANSFER" &&
     !!selectedAccount &&
     !!selectedDestAccount &&
     isPhysicalAccount(selectedAccount.account_type) &&
     isPhysicalAccount(selectedDestAccount.account_type)
 
+  // The complementary physical account (Paper Cash <-> Coin Pouch) — an
+  // EXPENSE's change can land here too, e.g. coins as change for a Paper
+  // Cash payment. Undefined if there's no active account of that type.
+  const otherPhysicalAccount =
+    selectedAccount && isPhysicalAccount(selectedAccount.account_type)
+      ? accounts.find(
+          (a) => isPhysicalAccount(a.account_type) && a.account_type !== selectedAccount.account_type
+        )
+      : undefined
+
+  // "OUT" rows are Handed Over for an expense / Take Out for breaking bills.
+  // "IN" rows split by account: the paying/source account's own change vs.
+  // the complementary account's change vs. a breaking-bills destination.
+  const initialOutRows = quantitiesFor(defaults?.denominationRows, accountId, "OUT")
+  const initialChangeRows = quantitiesFor(defaults?.denominationRows, accountId, "IN")
+  const initialChangeOtherRows = quantitiesFor(defaults?.denominationRows, otherPhysicalAccount?.id, "IN")
+  const initialInRows = quantitiesFor(defaults?.denominationRows, destinationAccountId, "IN")
+
   return (
-    <form action={action} className="space-y-3">
+    <form action={formAction} className="space-y-3">
       <div className="space-y-1.5">
         <Label htmlFor="type">Type</Label>
         <Select
@@ -141,7 +177,7 @@ export function TransactionForm({
         <Label htmlFor="account_id">{type === "TRANSFER" ? "From Account" : "Account"}</Label>
         <Select name="account_id" value={accountId} onValueChange={(v) => setAccountId(v ?? "")}>
           <SelectTrigger id="account_id" className="w-full">
-            <SelectValue placeholder="Select an account" />
+            <NamedSelectValue items={accounts} placeholder="Select an account" />
           </SelectTrigger>
           <SelectContent>
             {accounts.map((a) => (
@@ -162,7 +198,7 @@ export function TransactionForm({
             onValueChange={(v) => setDestinationAccountId(v ?? "")}
           >
             <SelectTrigger id="destination_account_id" className="w-full">
-              <SelectValue placeholder="Select an account" />
+              <NamedSelectValue items={accounts} placeholder="Select an account" />
             </SelectTrigger>
             <SelectContent>
               {accounts.map((a) => (
@@ -180,6 +216,9 @@ export function TransactionForm({
           sourceDenominations={denominationsFor(selectedAccount.account_type)}
           destDenominations={denominationsFor(selectedDestAccount.account_type)}
           amount={amount}
+          initialOut={initialOutRows}
+          initialIn={initialInRows}
+          onValidityChange={setPhysicalValid}
         />
       )}
 
@@ -188,7 +227,7 @@ export function TransactionForm({
           <Label htmlFor="category_id">Category</Label>
           <Select name="category_id" defaultValue={defaults?.category_id}>
             <SelectTrigger id="category_id" className="w-full">
-              <SelectValue placeholder="Select a category" />
+              <NamedSelectValue items={relevantCategories} placeholder="Select a category" />
             </SelectTrigger>
             <SelectContent>
               {relevantCategories.map((c) => (
@@ -199,6 +238,15 @@ export function TransactionForm({
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      {showIncomeDenoms && selectedAccount && (
+        <IncomeDenominationFields
+          denominations={denominationsFor(selectedAccount.account_type)}
+          amount={amount}
+          initialReceived={initialChangeRows}
+          onValidityChange={setPhysicalValid}
+        />
       )}
 
       {type === "EXPENSE" && (
@@ -247,6 +295,14 @@ export function TransactionForm({
         <ExpenseDenominationFields
           denominations={denominationsFor(selectedAccount.account_type)}
           amount={amount}
+          initialHandedOver={initialOutRows}
+          initialChange={initialChangeRows}
+          otherDenominations={
+            otherPhysicalAccount ? denominationsFor(otherPhysicalAccount.account_type) : undefined
+          }
+          otherAccountLabel={otherPhysicalAccount?.name}
+          initialChangeOther={initialChangeOtherRows}
+          onValidityChange={setPhysicalValid}
         />
       )}
 
@@ -255,7 +311,7 @@ export function TransactionForm({
           <Label htmlFor="savings_goal_id">Savings Goal</Label>
           <Select name="savings_goal_id" defaultValue={defaults?.savings_goal_id}>
             <SelectTrigger id="savings_goal_id" className="w-full">
-              <SelectValue placeholder="Select a goal" />
+              <NamedSelectValue items={savingsGoals} placeholder="Select a goal" />
             </SelectTrigger>
             <SelectContent>
               {savingsGoals.map((g) => (
@@ -270,8 +326,8 @@ export function TransactionForm({
 
       {type === "SAVINGS" && (
         <p className="text-xs text-muted-foreground">
-          Automatically split across your savings goals by their configured percentage
-          (leftover goes to Unallocated Savings). Adjust percentages on the Savings page.
+          Automatically split evenly across your active savings goals (any rounding remainder
+          goes to Unallocated Savings).
         </p>
       )}
 
@@ -285,7 +341,11 @@ export function TransactionForm({
         />
       </div>
 
-      <Button type="submit" className="w-full">
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={(showExpenseDenoms || showIncomeDenoms || showBreakingBills) && !physicalValid}
+      >
         {submitLabel}
       </Button>
     </form>
