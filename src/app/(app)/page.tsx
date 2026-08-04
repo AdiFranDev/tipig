@@ -14,10 +14,12 @@ import { formatPHP } from "@/lib/format"
 import { isPhysicalAccount, type AccountBalance, type AccountType } from "@/lib/accounts"
 import type { SavingsGoalBalance } from "@/lib/savings"
 import { currentMonth, monthRange, aggregateByType } from "@/lib/transactions"
+import { denominationsFor } from "@/lib/denominations"
 import { QUICK_ENTRIES } from "@/lib/quick-entries"
 import { NamedSelectValue } from "@/components/enum-select-value"
 import { sweepMonth, quickCoinsExpense } from "@/actions/transactions"
 import { MonthlyBarChart } from "./monthly-bar-chart"
+import { DenominationBarChart } from "./denomination-bar-chart"
 import { ActionForm } from "@/components/action-form"
 
 function monthLabel(month: string) {
@@ -42,15 +44,17 @@ export default async function DashboardOverview({
   const month = (await searchParams).month ?? currentMonth()
   const { start, end } = monthRange(month)
 
-  const [{ data: accountsData }, { data: goalsData }, { data: monthTxData }] = await Promise.all([
-    supabase.from("account_balances").select("*").order("name"),
-    supabase.from("savings_goal_balances").select("*").eq("is_active", true),
-    supabase
-      .from("transactions")
-      .select("type, amount, expense_classification")
-      .gte("transaction_date", start)
-      .lt("transaction_date", end),
-  ])
+  const [{ data: accountsData }, { data: goalsData }, { data: monthTxData }, { data: denomBalancesData }] =
+    await Promise.all([
+      supabase.from("account_balances").select("*").order("name"),
+      supabase.from("savings_goal_balances").select("*").eq("is_active", true),
+      supabase
+        .from("transactions")
+        .select("type, amount, expense_classification")
+        .gte("transaction_date", start)
+        .lt("transaction_date", end),
+      supabase.from("denomination_balances").select("account_id, denomination, on_hand"),
+    ])
 
   const accounts = (accountsData ?? []) as AccountBalance[]
   const goals = (goalsData ?? []) as SavingsGoalBalance[]
@@ -62,6 +66,15 @@ export default async function DashboardOverview({
 
   const digital = activeAccounts.filter((a) => !isPhysicalAccount(a.account_type))
   const physical = activeAccounts.filter((a) => isPhysicalAccount(a.account_type))
+
+  // Exact bill/coin counts per physical account, keyed for the breakdown
+  // chart below — denominationsFor() supplies the canonical ordered list so
+  // a denomination with zero on hand still shows as a zero-height bar.
+  const onHandByAccount = new Map<string, Map<number, number>>()
+  for (const row of denomBalancesData ?? []) {
+    if (!onHandByAccount.has(row.account_id)) onHandByAccount.set(row.account_id, new Map())
+    onHandByAccount.get(row.account_id)!.set(row.denomination, row.on_hand)
+  }
 
   const { income, expense, savings, netCashFlow } = aggregateByType(monthTxData ?? [])
   const monthlyRemaining = Math.round((income - expense - savings) * 100) / 100
@@ -137,14 +150,38 @@ export default async function DashboardOverview({
         </CardContent>
       </Card>
 
+      {physical.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Physical Cash Breakdown</CardTitle>
+            <CardDescription>Exact bill and coin counts on hand</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {physical.map((a) => {
+              const denominations = denominationsFor(a.account_type)
+              const onHand = onHandByAccount.get(a.account_id) ?? new Map<number, number>()
+              const data = denominations.map((d) => ({ denomination: d, quantity: onHand.get(d) ?? 0 }))
+              return (
+                <div key={a.account_id}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                    {a.name}
+                  </h3>
+                  <DenominationBarChart data={data} />
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {monthlyRemaining > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Monthly Review</CardTitle>
             <CardDescription>
-              {formatPHP(monthlyRemaining)} from {monthLabel(month)} has not been swept into
-              savings yet. Sweep it now, or leave it — it&apos;ll simply carry forward as
-              Available to Spend.
+              {formatPHP(monthlyRemaining)} from {monthLabel(month)}{" "}
+              has not been swept into savings yet. Sweep it now, or leave it — it&apos;ll simply
+              carry forward as Available to Spend.
             </CardDescription>
           </CardHeader>
           <CardContent>
