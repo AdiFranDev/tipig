@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -76,19 +76,52 @@ export function TransactionForm({
   defaults?: TransactionFormDefaults
   submitLabel?: string
 }>) {
-  const [formAction] = useActionToast(action, defaults ? "Transaction saved" : "Transaction added")
-  const [type, setType] = useState<TransactionType>(defaults?.type ?? "EXPENSE")
-  const [fundingSource, setFundingSource] = useState<FundingSource>(
-    defaults?.funding_source ?? "AVAILABLE_MONEY"
+  // The "idle" shape to return to after a successful add.
+  const initial = {
+    type: defaults?.type ?? "EXPENSE",
+    fundingSource: defaults?.funding_source ?? "AVAILABLE_MONEY",
+    accountId: defaults?.account_id ?? "",
+    destinationAccountId: defaults?.destination_account_id ?? "",
+    amount: defaults?.amount ?? 0,
+    categoryId: defaults?.category_id ?? "",
+    expenseClassification: defaults?.expense_classification ?? "NEED",
+    savingsGoalId: defaults?.savings_goal_id ?? "",
+  }
+
+  const formRef = useRef<HTMLFormElement>(null)
+  const [type, setType] = useState<TransactionType>(initial.type)
+  const [fundingSource, setFundingSource] = useState<FundingSource>(initial.fundingSource)
+  const [accountId, setAccountId] = useState(initial.accountId)
+  const [destinationAccountId, setDestinationAccountId] = useState(initial.destinationAccountId)
+  const [amount, setAmount] = useState(initial.amount)
+  const [categoryId, setCategoryId] = useState(initial.categoryId)
+  const [expenseClassification, setExpenseClassification] = useState<ExpenseClassification>(
+    initial.expenseClassification
   )
-  const [accountId, setAccountId] = useState(defaults?.account_id ?? "")
-  const [destinationAccountId, setDestinationAccountId] = useState(
-    defaults?.destination_account_id ?? ""
-  )
-  const [amount, setAmount] = useState(defaults?.amount ?? 0)
+  const [savingsGoalId, setSavingsGoalId] = useState(initial.savingsGoalId)
   // Not proven valid until a physical breakdown component reports in — the
   // safer default for a money-integrity gate (see submit button below).
   const [physicalValid, setPhysicalValid] = useState(false)
+
+  const [formAction] = useActionToast(
+    action,
+    defaults ? "Transaction saved" : "Transaction added",
+    // Redirect-on-success edits never reach this (the redirect wins the
+    // race), so this only fires for the persistent Add Transaction form —
+    // reset it back to idle instead of leaving the last entry on screen.
+    () => {
+      formRef.current?.reset()
+      setType(initial.type)
+      setFundingSource(initial.fundingSource)
+      setAccountId(initial.accountId)
+      setDestinationAccountId(initial.destinationAccountId)
+      setAmount(initial.amount)
+      setCategoryId(initial.categoryId)
+      setExpenseClassification(initial.expenseClassification)
+      setSavingsGoalId(initial.savingsGoalId)
+      setPhysicalValid(false)
+    }
+  )
 
   const relevantCategories = categories.filter((c) =>
     type === "INCOME" ? c.category_type === "INCOME" : c.category_type === "EXPENSE"
@@ -126,7 +159,7 @@ export function TransactionForm({
   const initialInRows = quantitiesFor(defaults?.denominationRows, destinationAccountId, "IN")
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form ref={formRef} action={formAction} className="space-y-3">
       <div className="space-y-1.5">
         <Label htmlFor="type">Type</Label>
         <Select
@@ -225,7 +258,7 @@ export function TransactionForm({
       {(type === "INCOME" || type === "EXPENSE") && (
         <div className="space-y-1.5">
           <Label htmlFor="category_id">Category</Label>
-          <Select name="category_id" defaultValue={defaults?.category_id}>
+          <Select name="category_id" value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
             <SelectTrigger id="category_id" className="w-full">
               <NamedSelectValue items={relevantCategories} placeholder="Select a category" />
             </SelectTrigger>
@@ -260,7 +293,8 @@ export function TransactionForm({
             <Label htmlFor="expense_classification">Needs or Wants?</Label>
             <Select
               name="expense_classification"
-              defaultValue={defaults?.expense_classification ?? "NEED"}
+              value={expenseClassification}
+              onValueChange={(v) => setExpenseClassification(v as ExpenseClassification)}
             >
               <SelectTrigger id="expense_classification" className="w-full">
                 <SelectValue>{(v: ExpenseClassification) => formatEnumLabel(v)}</SelectValue>
@@ -314,7 +348,11 @@ export function TransactionForm({
       {type === "EXPENSE" && fundingSource === "SAVED_MONEY" && (
         <div className="space-y-1.5">
           <Label htmlFor="savings_goal_id">Savings Goal</Label>
-          <Select name="savings_goal_id" defaultValue={defaults?.savings_goal_id}>
+          <Select
+            name="savings_goal_id"
+            value={savingsGoalId}
+            onValueChange={(v) => setSavingsGoalId(v ?? "")}
+          >
             <SelectTrigger id="savings_goal_id" className="w-full">
               <NamedSelectValue items={savingsGoals} placeholder="Select a goal" />
             </SelectTrigger>

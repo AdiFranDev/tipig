@@ -12,7 +12,8 @@ import type { ActionResult } from "@/lib/action-result"
  */
 export function useActionToast(
   action: (formData: FormData) => Promise<ActionResult>,
-  successMessage?: string
+  successMessage?: string,
+  onSuccess?: () => void
 ) {
   const [state, formAction, pending] = useActionState<ActionResult | null, FormData>(
     (_prevState, formData) => action(formData),
@@ -25,10 +26,11 @@ export function useActionToast(
     handled.current = state
     if (state.success) {
       toast.success(state.message ?? successMessage ?? "Saved")
+      onSuccess?.()
     } else {
       toast.error(state.error)
     }
-  }, [state, successMessage])
+  }, [state, successMessage, onSuccess])
 
   return [formAction, pending] as const
 }
