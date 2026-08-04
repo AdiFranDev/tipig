@@ -245,6 +245,11 @@ export function TransactionForm({
           denominations={denominationsFor(selectedAccount.account_type)}
           amount={amount}
           initialReceived={initialChangeRows}
+          otherDenominations={
+            otherPhysicalAccount ? denominationsFor(otherPhysicalAccount.account_type) : undefined
+          }
+          otherAccountLabel={otherPhysicalAccount?.name}
+          initialReceivedOther={initialChangeOtherRows}
           onValidityChange={setPhysicalValid}
         />
       )}

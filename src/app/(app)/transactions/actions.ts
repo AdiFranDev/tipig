@@ -322,35 +322,54 @@ async function validatePhysicalExpense(
  * cash is always an IN movement, which can never drain a denomination past
  * zero — so unlike the EXPENSE/TRANSFER validators this needs no Supabase
  * client and isn't async.
+ *
+ * Money received can span both physical accounts too (e.g. a ₱1000 bill
+ * plus a ₱20 coin as one allowance) — `otherAccount`'s denominations post
+ * to that account's ledger, not the receiving account's, mirroring
+ * `validatePhysicalExpense`'s cross-account change.
  */
 function validateIncomeDenomination(
   userId: string,
   accountId: string,
   accountType: string,
   amount: number,
-  formData: FormData
+  formData: FormData,
+  otherAccount?: { id: string; type: string }
 ): DenominationRow[] {
   const denominations = denominationsFor(accountType as never)
   const received = parseDenominationQuantities(formData, "received", denominations)
+  const otherDenominations = otherAccount ? denominationsFor(otherAccount.type as never) : []
+  const receivedOther = otherAccount
+    ? parseDenominationQuantities(formData, "received_other", otherDenominations)
+    : []
 
-  if (received.length === 0) {
+  if (received.length === 0 && receivedOther.length === 0) {
     throw new Error("Denomination breakdown is required for physical cash income")
   }
 
-  const receivedTotal = totalOf(received)
+  const receivedTotal = Math.round((totalOf(received) + totalOf(receivedOther)) * 100) / 100
   if (receivedTotal !== amount) {
     throw new Error(
       `Denomination breakdown (₱${receivedTotal}) must equal the income amount (₱${amount})`
     )
   }
 
-  return received.map((r) => ({
-    user_id: userId,
-    account_id: accountId,
-    denomination: r.denomination,
-    quantity: r.quantity,
-    direction: "IN" as const,
-  }))
+  return [
+    ...received.map((r) => ({
+      user_id: userId,
+      account_id: accountId,
+      denomination: r.denomination,
+      quantity: r.quantity,
+      direction: "IN" as const,
+    })),
+    ...receivedOther.map((r) => ({
+      user_id: userId,
+      account_id: otherAccount!.id,
+      denomination: r.denomination,
+      quantity: r.quantity,
+      direction: "IN" as const,
+    })),
+  ]
 }
 
 /**
@@ -469,12 +488,14 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       otherAccount
     )
   } else if (payload.type === "INCOME" && sourceType && isPhysicalAccount(sourceType)) {
+    const otherAccount = await findOtherPhysicalAccount(supabase, user.id, sourceType)
     denominationRows = validateIncomeDenomination(
       user.id,
       payload.account_id,
       sourceType,
       payload.amount,
-      formData
+      formData,
+      otherAccount
     )
   } else if (
     payload.type === "TRANSFER" &&
@@ -588,12 +609,14 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         transactionId
       )
     } else if (payload.type === "INCOME" && sourceType && isPhysicalAccount(sourceType)) {
+      const otherAccount = await findOtherPhysicalAccount(supabase, user.id, sourceType)
       denominationRows = validateIncomeDenomination(
         user.id,
         payload.account_id,
         sourceType,
         payload.amount,
-        formData
+        formData,
+        otherAccount
       )
     } else if (
       payload.type === "TRANSFER" &&

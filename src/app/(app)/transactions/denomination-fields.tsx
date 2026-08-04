@@ -145,20 +145,34 @@ export function ExpenseDenominationFields({
   )
 }
 
-/** Physical INCOME — the denomination breakdown of exactly what was received. */
+/**
+ * Physical INCOME — the denomination breakdown of exactly what was
+ * received. Money received can span both physical accounts too (e.g. a
+ * ₱1000 bill plus a ₱20 coin as one allowance) — those "other account" rows
+ * post there, not to the receiving account, mirroring how EXPENSE change
+ * can cross into a complementary account above.
+ */
 export function IncomeDenominationFields({
   denominations,
   amount,
   initialReceived,
+  otherDenominations,
+  otherAccountLabel,
+  initialReceivedOther,
   onValidityChange,
 }: Readonly<{
   denominations: readonly number[]
   amount: number
   initialReceived?: Record<number, number>
+  otherDenominations?: readonly number[]
+  otherAccountLabel?: string
+  initialReceivedOther?: Record<number, number>
   onValidityChange?: (valid: boolean) => void
 }>) {
-  const received = useQuantities(denominations, initialReceived)
-  const valid = Math.abs(received.total - amount) < 0.001
+  const receivedOwn = useQuantities(denominations, initialReceived)
+  const receivedOther = useQuantities(otherDenominations ?? [], initialReceivedOther)
+  const receivedTotal = Math.round((receivedOwn.total + receivedOther.total) * 100) / 100
+  const valid = Math.abs(receivedTotal - amount) < 0.001
 
   useEffect(() => {
     onValidityChange?.(valid)
@@ -171,14 +185,23 @@ export function IncomeDenominationFields({
         legend="Received"
         prefix="received"
         denominations={denominations}
-        quantities={received.quantities}
-        onChange={(d, qty) => received.setQuantities((q) => ({ ...q, [d]: qty }))}
+        quantities={receivedOwn.quantities}
+        onChange={(d, qty) => receivedOwn.setQuantities((q) => ({ ...q, [d]: qty }))}
       />
+      {otherDenominations && otherDenominations.length > 0 && (
+        <DenominationGrid
+          legend={`Received (${otherAccountLabel ?? "other"})`}
+          prefix="received_other"
+          denominations={otherDenominations}
+          quantities={receivedOther.quantities}
+          onChange={(d, qty) => receivedOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+        />
+      )}
       {valid ? (
         <p className="text-xs text-muted-foreground">✓ Matches the income amount.</p>
       ) : (
         <p className="text-xs text-destructive">
-          Doesn&apos;t match the income amount ({formatPHP(amount)}) — got {formatPHP(received.total)}.
+          Doesn&apos;t match the income amount ({formatPHP(amount)}) — got {formatPHP(receivedTotal)}.
         </p>
       )}
     </div>
