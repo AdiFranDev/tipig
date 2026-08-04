@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
+import { ensureDefaultSettings } from "@/lib/settings"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -44,7 +45,7 @@ export default async function DashboardOverview({
   const month = (await searchParams).month ?? currentMonth()
   const { start, end } = monthRange(month)
 
-  const [{ data: accountsData }, { data: goalsData }, { data: monthTxData }, { data: denomBalancesData }] =
+  const [{ data: accountsData }, { data: goalsData }, { data: monthTxData }, { data: denomBalancesData }, settings] =
     await Promise.all([
       supabase.from("account_balances").select("*").order("name"),
       supabase.from("savings_goal_balances").select("*").eq("is_active", true),
@@ -54,6 +55,7 @@ export default async function DashboardOverview({
         .gte("transaction_date", start)
         .lt("transaction_date", end),
       supabase.from("denomination_balances").select("account_id, denomination, on_hand"),
+      ensureDefaultSettings(supabase, user.id),
     ])
 
   const accounts = (accountsData ?? []) as AccountBalance[]
@@ -128,6 +130,43 @@ export default async function DashboardOverview({
           highlight
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Budget Split</CardTitle>
+          <CardDescription>
+            If {formatPHP(totalMoney)} followed your Settings targets — a visualization only,
+            nothing is actually divided or moved.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+            <div style={{ width: `${settings.needs_target_percentage}%` }} className="h-full bg-[var(--chart-2)]" />
+            <div style={{ width: `${settings.wants_target_percentage}%` }} className="h-full bg-[var(--chart-3)]" />
+            <div style={{ width: `${settings.savings_target_percentage}%` }} className="h-full bg-[var(--chart-4)]" />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <BudgetSplitStat
+              label="Needs"
+              percentage={settings.needs_target_percentage}
+              amount={(totalMoney * settings.needs_target_percentage) / 100}
+              swatch="bg-[var(--chart-2)]"
+            />
+            <BudgetSplitStat
+              label="Wants"
+              percentage={settings.wants_target_percentage}
+              amount={(totalMoney * settings.wants_target_percentage) / 100}
+              swatch="bg-[var(--chart-3)]"
+            />
+            <BudgetSplitStat
+              label="Savings"
+              percentage={settings.savings_target_percentage}
+              amount={(totalMoney * settings.savings_target_percentage) / 100}
+              swatch="bg-[var(--chart-4)]"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -317,6 +356,23 @@ function MiniStat({
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-lg font-semibold tabular-nums ${color}`}>{formatPHP(value)}</p>
+    </div>
+  )
+}
+
+function BudgetSplitStat({
+  label,
+  percentage,
+  amount,
+  swatch,
+}: Readonly<{ label: string; percentage: number; amount: number; swatch: string }>) {
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className={`size-2 rounded-full ${swatch}`} />
+        {label} ({percentage}%)
+      </p>
+      <p className="text-lg font-semibold tabular-nums text-foreground">{formatPHP(amount)}</p>
     </div>
   )
 }
