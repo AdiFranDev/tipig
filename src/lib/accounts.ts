@@ -1,3 +1,5 @@
+import { Landmark, Building2, Wallet, Banknote, Coins } from "lucide-react"
+
 export const ACCOUNT_TYPES = [
   { value: "DIGITAL_BANK", label: "Digital Bank", group: "digital" },
   { value: "TRADITIONAL_BANK", label: "Traditional Bank", group: "digital" },
@@ -14,6 +16,14 @@ export function accountTypeLabel(type: AccountType): string {
 
 export function isPhysicalAccount(type: AccountType): boolean {
   return type === "PAPER_CASH" || type === "COIN_POUCH"
+}
+
+export const ACCOUNT_ICONS: Record<AccountType, typeof Landmark> = {
+  DIGITAL_BANK: Landmark,
+  TRADITIONAL_BANK: Building2,
+  E_WALLET: Wallet,
+  PAPER_CASH: Banknote,
+  COIN_POUCH: Coins,
 }
 
 export const DEFAULT_ACCOUNTS: { name: string; account_type: AccountType }[] = [

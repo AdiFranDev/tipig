@@ -10,9 +10,8 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
-import { Landmark, Building2, Wallet, Banknote, Coins } from "lucide-react"
 import { formatPHP } from "@/lib/format"
-import { isPhysicalAccount, type AccountBalance, type AccountType } from "@/lib/accounts"
+import { isPhysicalAccount, ACCOUNT_ICONS, type AccountBalance } from "@/lib/accounts"
 import type { SavingsGoalBalance } from "@/lib/savings"
 import { currentMonth, monthRange, aggregateByType } from "@/lib/transactions"
 import { denominationsFor } from "@/lib/denominations"
@@ -375,14 +374,6 @@ function BudgetSplitStat({
       <p className="text-lg font-semibold tabular-nums text-foreground">{formatPHP(amount)}</p>
     </div>
   )
-}
-
-const ACCOUNT_ICONS: Record<AccountType, typeof Landmark> = {
-  DIGITAL_BANK: Landmark,
-  TRADITIONAL_BANK: Building2,
-  E_WALLET: Wallet,
-  PAPER_CASH: Banknote,
-  COIN_POUCH: Coins,
 }
 
 function AccountList({

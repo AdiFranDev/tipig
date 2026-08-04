@@ -1,0 +1,184 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - banner [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - generic [ref=f2e5]: Tipig
+        - navigation [ref=f2e9]:
+          - link "Overview" [ref=f2e10] [cursor=pointer]:
+            - /url: /
+          - link "Transactions" [ref=f2e11] [cursor=pointer]:
+            - /url: /transactions
+          - link "Accounts" [ref=f2e12] [cursor=pointer]:
+            - /url: /accounts
+          - link "Savings" [ref=f2e13] [cursor=pointer]:
+            - /url: /savings
+          - link "Annual" [ref=f2e14] [cursor=pointer]:
+            - /url: /annual
+          - link "Settings" [ref=f2e15] [cursor=pointer]:
+            - /url: /settings
+      - generic [ref=f2e16]:
+        - generic [ref=f2e17]: estebanfrancisadrian@gmail.com
+        - button "Toggle theme" [ref=f2e18]
+        - button "Sign Out" [ref=f2e20]
+    - main [ref=f2e21]:
+      - generic [ref=f2e22]:
+        - generic [ref=f2e23]:
+          - heading "Transactions" [level=1] [ref=f2e24]
+          - generic [ref=f2e25]:
+            - button "‹" [ref=f2e26] [cursor=pointer]
+            - generic [ref=f2e27]: August 2026
+            - button "›" [ref=f2e28] [cursor=pointer]
+        - generic [ref=f2e29]:
+          - generic [ref=f2e30]:
+            - generic [ref=f2e31]: Add Transaction
+            - generic [ref=f2e34]:
+              - generic [ref=f2e35]:
+                - generic [ref=f2e36]: Type
+                - combobox "Type" [ref=f2e37]:
+                  - generic [ref=f2e38]: Expense
+                  - img: ▼
+                - textbox [ref=f2e39]: EXPENSE
+              - generic [ref=f2e40]:
+                - generic [ref=f2e41]:
+                  - generic [ref=f2e42]: Date
+                  - textbox "Date" [ref=f2e43]: 2026-08-04
+                - generic [ref=f2e44]:
+                  - generic [ref=f2e45]: Amount
+                  - spinbutton "Amount" [ref=f2e46]
+              - generic [ref=f2e47]:
+                - generic [ref=f2e48]: Account
+                - combobox "Account" [ref=f2e49]:
+                  - generic [ref=f2e50]: Select an account
+                  - img: ▼
+                - textbox [ref=f2e51]
+              - generic [ref=f2e52]:
+                - generic [ref=f2e53]: Category
+                - combobox "Category" [ref=f2e54]:
+                  - generic [ref=f2e55]: Select a category
+                  - img: ▼
+                - textbox [ref=f2e56]
+              - generic [ref=f2e57]:
+                - generic [ref=f2e58]: Needs or Wants?
+                - combobox "Needs or Wants?" [ref=f2e59]:
+                  - generic [ref=f2e60]: Need
+                  - img: ▼
+                - textbox [ref=f2e61]: NEED
+              - generic [ref=f2e62]:
+                - generic [ref=f2e63]: Paid From
+                - combobox "Paid From" [ref=f2e64]:
+                  - generic [ref=f2e65]: Available Money
+                  - img: ▼
+                - textbox [ref=f2e66]: AVAILABLE_MONEY
+              - generic [ref=f2e67]:
+                - generic [ref=f2e68]: Description
+                - textbox "Description" [ref=f2e69]:
+                  - /placeholder: Optional
+              - button "Add Transaction" [ref=f2e70]
+          - generic [ref=f2e71]:
+            - generic [ref=f2e72]:
+              - generic [ref=f2e73]: Search & Filter
+              - generic [ref=f2e76]:
+                - textbox "Search description..." [ref=f2e78]
+                - combobox [ref=f2e79]:
+                  - generic [ref=f2e80]: All Types
+                  - img: ▼
+                - textbox [ref=f2e81]: ALL
+                - combobox [ref=f2e82]:
+                  - generic [ref=f2e83]: Needs & Wants
+                  - img: ▼
+                - textbox [ref=f2e84]: ALL
+                - combobox [ref=f2e85]:
+                  - generic [ref=f2e86]: All Categories
+                  - img: ▼
+                - textbox [ref=f2e87]: ALL
+                - combobox [ref=f2e88]:
+                  - generic [ref=f2e89]: MariBank
+                  - img: ▼
+                - textbox [ref=f2e90]: 892096d7-b938-4b79-b243-7fadaafd5e43
+                - generic [ref=f2e91]:
+                  - button "Apply Filters" [ref=f2e92]
+                  - button "Clear" [ref=f2e93] [cursor=pointer]
+            - generic [ref=f2e94]:
+              - generic [ref=f2e95]:
+                - generic [ref=f2e96]: Account Balances
+                - generic [ref=f2e97]: Current balance, as of now — tap an account to filter below
+              - generic [ref=f2e98]:
+                - generic [ref=f2e99]:
+                  - heading "Digital" [level=3] [ref=f2e100]
+                  - list [ref=f2e101]:
+                    - listitem [ref=f2e102]:
+                      - link "Gcash ₱0.00" [ref=f2e103] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=a56fcb99-547c-46c1-8d30-afc23cea0c3a
+                        - generic [ref=f2e104]: Gcash
+                        - generic [ref=f2e108]: ₱0.00
+                    - listitem [ref=f2e109]:
+                      - link "GoTyme ₱0.00" [ref=f2e110] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=55792723-cc97-4adc-9fe0-fcb90db17172
+                        - generic [ref=f2e111]: GoTyme
+                        - generic [ref=f2e114]: ₱0.00
+                    - listitem [ref=f2e115]:
+                      - link "LandBank ₱341.79" [ref=f2e116] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=02fac822-974b-4bb7-8925-b67ab2fae8ec
+                        - generic [ref=f2e117]: LandBank
+                        - generic [ref=f2e122]: ₱341.79
+                    - listitem [ref=f2e123]:
+                      - link "MariBank ₱1,500.39" [ref=f2e124] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08
+                        - generic [ref=f2e125]: MariBank
+                        - generic [ref=f2e128]: ₱1,500.39
+                    - listitem [ref=f2e129]:
+                      - link "Maya ₱0.00" [ref=f2e130] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=012c067d-9170-47ec-adb1-a4bbd3a29ec4
+                        - generic [ref=f2e131]: Maya
+                        - generic [ref=f2e135]: ₱0.00
+                    - listitem [ref=f2e136]:
+                      - link "Wise ₱0.00" [ref=f2e137] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=3f4c9512-0ccc-400b-9028-9cee063b1ea2
+                        - generic [ref=f2e138]: Wise
+                        - generic [ref=f2e142]: ₱0.00
+                - generic [ref=f2e143]:
+                  - heading "Physical" [level=3] [ref=f2e144]
+                  - list [ref=f2e145]:
+                    - listitem [ref=f2e146]:
+                      - link "Coin Pouch ₱180.00" [ref=f2e147] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=fa537353-a8bc-4ee2-8e22-f11ebeee4e09
+                        - generic [ref=f2e148]: Coin Pouch
+                        - generic [ref=f2e154]: ₱180.00
+                    - listitem [ref=f2e155]:
+                      - link "Paper Cash ₱0.00" [ref=f2e156] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=40326bdc-0d1f-4565-a1cd-0618d4b6dd70
+                        - generic [ref=f2e157]: Paper Cash
+                        - generic [ref=f2e161]: ₱0.00
+            - generic [ref=f2e162]:
+              - generic [ref=f2e163]: August 2026
+              - generic [ref=f2e165]:
+                - generic [ref=f2e166]:
+                  - link "SAVINGS SAVINGS 2026-08-04 · MariBank → null" [ref=f2e167] [cursor=pointer]:
+                    - /url: /transactions/faa18727-9fa8-48db-b391-981d8c917b17/edit
+                    - generic [ref=f2e168]:
+                      - paragraph [ref=f2e169]: SAVINGS
+                      - generic [ref=f2e170]: SAVINGS
+                    - paragraph [ref=f2e171]: 2026-08-04 · MariBank → null
+                  - generic [ref=f2e172]: ₱1,213.31
+                  - button "Delete transaction" [ref=f2e174]: ×
+                - generic [ref=f2e175]:
+                  - link "TRANSFER TRANSFER 2026-08-04 · Paper Cash → MariBank" [ref=f2e176] [cursor=pointer]:
+                    - /url: /transactions/c632a096-cf1b-47e0-88f9-4261355104a6/edit
+                    - generic [ref=f2e177]:
+                      - paragraph [ref=f2e178]: TRANSFER
+                      - generic [ref=f2e179]: TRANSFER
+                    - paragraph [ref=f2e180]: 2026-08-04 · Paper Cash → MariBank
+                  - generic [ref=f2e181]: ₱850.00
+                  - button "Delete transaction" [ref=f2e183]: ×
+                - generic [ref=f2e184]:
+                  - link ".39 is interest INCOME 2026-08-04 · Daily allowance · MariBank" [ref=f2e185] [cursor=pointer]:
+                    - /url: /transactions/8ad5c9fd-b46d-4e02-8598-1b5307498a1a/edit
+                    - generic [ref=f2e186]:
+                      - paragraph [ref=f2e187]: .39 is interest
+                      - generic [ref=f2e188]: INCOME
+                    - paragraph [ref=f2e189]: 2026-08-04 · Daily allowance · MariBank
+                  - generic [ref=f2e190]: +₱650.39
+                  - button "Delete transaction" [ref=f2e192]: ×
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f2e198] [cursor=pointer]
+  - alert [ref=f2e202]

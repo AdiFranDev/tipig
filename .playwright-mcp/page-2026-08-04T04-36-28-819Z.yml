@@ -1,0 +1,244 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - banner [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - generic [ref=f1e5]: Tipig
+        - navigation [ref=f1e9]:
+          - link "Overview" [ref=f1e10] [cursor=pointer]:
+            - /url: /
+          - link "Transactions" [ref=f1e11] [cursor=pointer]:
+            - /url: /transactions
+          - link "Accounts" [ref=f1e12] [cursor=pointer]:
+            - /url: /accounts
+          - link "Savings" [ref=f1e13] [cursor=pointer]:
+            - /url: /savings
+          - link "Annual" [ref=f1e14] [cursor=pointer]:
+            - /url: /annual
+          - link "Settings" [ref=f1e15] [cursor=pointer]:
+            - /url: /settings
+      - generic [ref=f1e16]:
+        - generic [ref=f1e17]: estebanfrancisadrian@gmail.com
+        - button "Toggle theme" [ref=f1e18]
+        - button "Sign Out" [ref=f1e20]
+    - main [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - generic [ref=f1e23]:
+          - heading "Transactions" [level=1] [ref=f1e24]
+          - generic [ref=f1e25]:
+            - button "‹" [ref=f1e26] [cursor=pointer]
+            - generic [ref=f1e27]: August 2026
+            - button "›" [ref=f1e28] [cursor=pointer]
+        - generic [ref=f1e29]:
+          - generic [ref=f1e30]:
+            - generic [ref=f1e31]: Add Transaction
+            - generic [ref=f1e34]:
+              - generic [ref=f1e35]:
+                - generic [ref=f1e36]: Type
+                - combobox "Type" [ref=f1e37]:
+                  - generic [ref=f1e38]: Expense
+                  - img: ▼
+                - textbox [ref=f1e39]: EXPENSE
+              - generic [ref=f1e40]:
+                - generic [ref=f1e41]:
+                  - generic [ref=f1e42]: Date
+                  - textbox "Date" [ref=f1e43]: 2026-08-04
+                - generic [ref=f1e44]:
+                  - generic [ref=f1e45]: Amount
+                  - spinbutton "Amount" [ref=f1e46]
+              - generic [ref=f1e47]:
+                - generic [ref=f1e48]: Account
+                - combobox "Account" [ref=f1e49]:
+                  - generic [ref=f1e50]: Select an account
+                  - img: ▼
+                - textbox [ref=f1e51]
+              - generic [ref=f1e52]:
+                - generic [ref=f1e53]: Category
+                - combobox "Category" [ref=f1e54]:
+                  - generic [ref=f1e55]: Select a category
+                  - img: ▼
+                - textbox [ref=f1e56]
+              - generic [ref=f1e57]:
+                - generic [ref=f1e58]: Needs or Wants?
+                - combobox "Needs or Wants?" [ref=f1e59]:
+                  - generic [ref=f1e60]: Need
+                  - img: ▼
+                - textbox [ref=f1e61]: NEED
+              - generic [ref=f1e62]:
+                - generic [ref=f1e63]: Paid From
+                - combobox "Paid From" [ref=f1e64]:
+                  - generic [ref=f1e65]: Available Money
+                  - img: ▼
+                - textbox [ref=f1e66]: AVAILABLE_MONEY
+              - generic [ref=f1e67]:
+                - generic [ref=f1e68]: Description
+                - textbox "Description" [ref=f1e69]:
+                  - /placeholder: Optional
+              - button "Add Transaction" [ref=f1e70]
+          - generic [ref=f1e71]:
+            - generic [ref=f1e72]:
+              - generic [ref=f1e73]: Search & Filter
+              - generic [ref=f1e76]:
+                - textbox "Search description..." [ref=f1e78]
+                - combobox [ref=f1e79]:
+                  - generic [ref=f1e80]: All Types
+                  - img: ▼
+                - textbox [ref=f1e81]: ALL
+                - combobox [ref=f1e82]:
+                  - generic [ref=f1e83]: Needs & Wants
+                  - img: ▼
+                - textbox [ref=f1e84]: ALL
+                - combobox [ref=f1e85]:
+                  - generic [ref=f1e86]: All Categories
+                  - img: ▼
+                - textbox [ref=f1e87]: ALL
+                - combobox [ref=f1e88]:
+                  - generic [ref=f1e89]: All Accounts
+                  - img: ▼
+                - textbox [ref=f1e90]: ALL
+                - button "Apply Filters" [ref=f1e92]
+            - generic [ref=f1e93]:
+              - generic [ref=f1e94]:
+                - generic [ref=f1e95]: Account Balances
+                - generic [ref=f1e96]: Current balance, as of now — tap an account to filter below
+              - generic [ref=f1e97]:
+                - generic [ref=f1e98]:
+                  - heading "Digital" [level=3] [ref=f1e99]
+                  - list [ref=f1e100]:
+                    - listitem [ref=f1e101]:
+                      - link "Gcash ₱0.00" [ref=f1e102] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=a56fcb99-547c-46c1-8d30-afc23cea0c3a
+                        - generic [ref=f1e103]: Gcash
+                        - generic [ref=f1e107]: ₱0.00
+                    - listitem [ref=f1e108]:
+                      - link "GoTyme ₱0.00" [ref=f1e109] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=55792723-cc97-4adc-9fe0-fcb90db17172
+                        - generic [ref=f1e110]: GoTyme
+                        - generic [ref=f1e113]: ₱0.00
+                    - listitem [ref=f1e114]:
+                      - link "LandBank ₱341.79" [ref=f1e115] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=02fac822-974b-4bb7-8925-b67ab2fae8ec
+                        - generic [ref=f1e116]: LandBank
+                        - generic [ref=f1e121]: ₱341.79
+                    - listitem [ref=f1e122]:
+                      - link "MariBank ₱1,500.39" [ref=f1e123] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=892096d7-b938-4b79-b243-7fadaafd5e43
+                        - generic [ref=f1e124]: MariBank
+                        - generic [ref=f1e127]: ₱1,500.39
+                    - listitem [ref=f1e128]:
+                      - link "Maya ₱0.00" [ref=f1e129] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=012c067d-9170-47ec-adb1-a4bbd3a29ec4
+                        - generic [ref=f1e130]: Maya
+                        - generic [ref=f1e134]: ₱0.00
+                    - listitem [ref=f1e135]:
+                      - link "Wise ₱0.00" [ref=f1e136] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=3f4c9512-0ccc-400b-9028-9cee063b1ea2
+                        - generic [ref=f1e137]: Wise
+                        - generic [ref=f1e141]: ₱0.00
+                - generic [ref=f1e142]:
+                  - heading "Physical" [level=3] [ref=f1e143]
+                  - list [ref=f1e144]:
+                    - listitem [ref=f1e145]:
+                      - link "Coin Pouch ₱180.00" [ref=f1e146] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=fa537353-a8bc-4ee2-8e22-f11ebeee4e09
+                        - generic [ref=f1e147]: Coin Pouch
+                        - generic [ref=f1e153]: ₱180.00
+                    - listitem [ref=f1e154]:
+                      - link "Paper Cash ₱0.00" [ref=f1e155] [cursor=pointer]:
+                        - /url: /transactions?month=2026-08&account=40326bdc-0d1f-4565-a1cd-0618d4b6dd70
+                        - generic [ref=f1e156]: Paper Cash
+                        - generic [ref=f1e160]: ₱0.00
+            - generic [ref=f1e161]:
+              - generic [ref=f1e162]: August 2026
+              - generic [ref=f1e164]:
+                - generic [ref=f1e165]:
+                  - link "SAVINGS SAVINGS 2026-08-04 · MariBank → null" [ref=f1e166] [cursor=pointer]:
+                    - /url: /transactions/faa18727-9fa8-48db-b391-981d8c917b17/edit
+                    - generic [ref=f1e167]:
+                      - paragraph [ref=f1e168]: SAVINGS
+                      - generic [ref=f1e169]: SAVINGS
+                    - paragraph [ref=f1e170]: 2026-08-04 · MariBank → null
+                  - generic [ref=f1e171]: ₱1,213.31
+                  - button "Delete transaction" [ref=f1e173]: ×
+                - generic [ref=f1e174]:
+                  - link "TRANSFER TRANSFER 2026-08-04 · Paper Cash → MariBank" [ref=f1e175] [cursor=pointer]:
+                    - /url: /transactions/c632a096-cf1b-47e0-88f9-4261355104a6/edit
+                    - generic [ref=f1e176]:
+                      - paragraph [ref=f1e177]: TRANSFER
+                      - generic [ref=f1e178]: TRANSFER
+                    - paragraph [ref=f1e179]: 2026-08-04 · Paper Cash → MariBank
+                  - generic [ref=f1e180]: ₱850.00
+                  - button "Delete transaction" [ref=f1e182]: ×
+                - generic [ref=f1e183]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · LandBank" [ref=f1e184] [cursor=pointer]:
+                    - /url: /transactions/03392b66-fe4a-492b-8254-fbf17c553ff0/edit
+                    - generic [ref=f1e185]:
+                      - paragraph [ref=f1e186]: Daily allowance
+                      - generic [ref=f1e187]: INCOME
+                    - paragraph [ref=f1e188]: 2026-08-04 · Daily allowance · LandBank
+                  - generic [ref=f1e189]: +₱341.79
+                  - button "Delete transaction" [ref=f1e191]: ×
+                - generic [ref=f1e192]:
+                  - link ".39 is interest INCOME 2026-08-04 · Daily allowance · MariBank" [ref=f1e193] [cursor=pointer]:
+                    - /url: /transactions/8ad5c9fd-b46d-4e02-8598-1b5307498a1a/edit
+                    - generic [ref=f1e194]:
+                      - paragraph [ref=f1e195]: .39 is interest
+                      - generic [ref=f1e196]: INCOME
+                    - paragraph [ref=f1e197]: 2026-08-04 · Daily allowance · MariBank
+                  - generic [ref=f1e198]: +₱650.39
+                  - button "Delete transaction" [ref=f1e200]: ×
+                - generic [ref=f1e201]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · Coin Pouch" [ref=f1e202] [cursor=pointer]:
+                    - /url: /transactions/acce5abf-4d36-4af1-a684-5cf5b05dd70a/edit
+                    - generic [ref=f1e203]:
+                      - paragraph [ref=f1e204]: Daily allowance
+                      - generic [ref=f1e205]: INCOME
+                    - paragraph [ref=f1e206]: 2026-08-04 · Daily allowance · Coin Pouch
+                  - generic [ref=f1e207]: +₱1.00
+                  - button "Delete transaction" [ref=f1e209]: ×
+                - generic [ref=f1e210]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · Coin Pouch" [ref=f1e211] [cursor=pointer]:
+                    - /url: /transactions/83007fd9-7c43-49be-90f7-4f70a78dd5e5/edit
+                    - generic [ref=f1e212]:
+                      - paragraph [ref=f1e213]: Daily allowance
+                      - generic [ref=f1e214]: INCOME
+                    - paragraph [ref=f1e215]: 2026-08-04 · Daily allowance · Coin Pouch
+                  - generic [ref=f1e216]: +₱19.00
+                  - button "Delete transaction" [ref=f1e218]: ×
+                - generic [ref=f1e219]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · Coin Pouch" [ref=f1e220] [cursor=pointer]:
+                    - /url: /transactions/77b4adf0-43ac-48e7-97ec-0a14fa6603ab/edit
+                    - generic [ref=f1e221]:
+                      - paragraph [ref=f1e222]: Daily allowance
+                      - generic [ref=f1e223]: INCOME
+                    - paragraph [ref=f1e224]: 2026-08-04 · Daily allowance · Coin Pouch
+                  - generic [ref=f1e225]: +₱50.00
+                  - button "Delete transaction" [ref=f1e227]: ×
+                - generic [ref=f1e228]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · Coin Pouch" [ref=f1e229] [cursor=pointer]:
+                    - /url: /transactions/68ba5de0-f65c-4cde-8350-67acf4c753da/edit
+                    - generic [ref=f1e230]:
+                      - paragraph [ref=f1e231]: Daily allowance
+                      - generic [ref=f1e232]: INCOME
+                    - paragraph [ref=f1e233]: 2026-08-04 · Daily allowance · Coin Pouch
+                  - generic [ref=f1e234]: +₱30.00
+                  - button "Delete transaction" [ref=f1e236]: ×
+                - generic [ref=f1e237]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · Coin Pouch" [ref=f1e238] [cursor=pointer]:
+                    - /url: /transactions/9ed00efc-4be5-414c-8e2c-844cd843160a/edit
+                    - generic [ref=f1e239]:
+                      - paragraph [ref=f1e240]: Daily allowance
+                      - generic [ref=f1e241]: INCOME
+                    - paragraph [ref=f1e242]: 2026-08-04 · Daily allowance · Coin Pouch
+                  - generic [ref=f1e243]: +₱80.00
+                  - button "Delete transaction" [ref=f1e245]: ×
+                - generic [ref=f1e246]:
+                  - link "Daily allowance INCOME 2026-08-04 · Daily allowance · Paper Cash" [ref=f1e247] [cursor=pointer]:
+                    - /url: /transactions/86635d90-7cd9-4cf5-85df-6fee54cc1e30/edit
+                    - generic [ref=f1e248]:
+                      - paragraph [ref=f1e249]: Daily allowance
+                      - generic [ref=f1e250]: INCOME
+                    - paragraph [ref=f1e251]: 2026-08-04 · Daily allowance · Paper Cash
+                  - generic [ref=f1e252]: +₱850.00
+                  - button "Delete transaction" [ref=f1e254]: ×
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f1e260] [cursor=pointer]

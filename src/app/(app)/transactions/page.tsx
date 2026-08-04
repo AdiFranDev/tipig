@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
-import { ensureDefaultAccounts } from "@/lib/accounts"
+import { ensureDefaultAccounts, isPhysicalAccount, ACCOUNT_ICONS, type AccountBalance } from "@/lib/accounts"
 import { ensureDefaultCategories, type Category } from "@/lib/categories"
 import { ensureDefaultSavingsGoals } from "@/lib/savings"
 import {
@@ -12,7 +12,7 @@ import {
   type TransactionType,
 } from "@/lib/transactions"
 import { formatPHP, formatEnumLabel } from "@/lib/format"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,8 @@ import { createTransaction, deleteTransaction } from "./actions"
 import { ActionForm } from "@/components/action-form"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const DEFAULT_TX_LIMIT = 5
+const LOAD_MORE_STEP = 5
 
 function monthLabel(month: string) {
   const [year, mon] = month.split("-").map(Number)
@@ -50,6 +52,7 @@ type TransactionsSearchParams = {
   bucket?: string
   category?: string
   account?: string
+  limit?: string
 }
 
 export default async function TransactionsPage({
@@ -67,20 +70,32 @@ export default async function TransactionsPage({
     ensureDefaultSavingsGoals(supabase, user.id),
   ])
 
-  const { month: monthParam, q, type: typeFilter, bucket: bucketFilter, category: categoryFilter, account: accountFilter } =
-    await searchParams
+  const {
+    month: monthParam,
+    q,
+    type: typeFilter,
+    bucket: bucketFilter,
+    category: categoryFilter,
+    account: accountFilter,
+    limit: limitParam,
+  } = await searchParams
   const month = monthParam ?? currentMonth()
   const { start, end } = monthRange(month)
+  const requestedLimit = Number(limitParam)
+  const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : DEFAULT_TX_LIMIT
 
-  const [{ data: accountsData }, { data: categoriesData }, { data: goalsData }] = await Promise.all([
-    supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
-    supabase.from("categories").select("*").eq("is_active", true).order("name"),
-    supabase.from("savings_goals").select("id, name").eq("is_active", true).order("name"),
-  ])
+  const [{ data: accountsData }, { data: categoriesData }, { data: goalsData }, { data: balancesData }] =
+    await Promise.all([
+      supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
+      supabase.from("categories").select("*").eq("is_active", true).order("name"),
+      supabase.from("savings_goals").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("account_balances").select("*").eq("is_active", true).order("name"),
+    ])
 
   const accounts = accountsData ?? []
   const categories = (categoriesData ?? []) as Category[]
   const goals = goalsData ?? []
+  const accountBalances = (balancesData ?? []) as AccountBalance[]
 
   let txQuery = supabase
     .from("transaction_details")
@@ -105,9 +120,36 @@ export default async function TransactionsPage({
   const { data: txData } = await txQuery
     .order("transaction_date", { ascending: false })
     .order("created_at", { ascending: false })
+    .range(0, limit) // fetch one extra row past `limit` to detect "has more" without a count query
 
-  const transactions = (txData ?? []) as TransactionDetail[]
+  const allFetched = (txData ?? []) as TransactionDetail[]
+  const transactions = allFetched.slice(0, limit)
+  const hasMore = allFetched.length > limit
   const hasFilters = Boolean(q || typeFilter || bucketFilter || categoryFilter || accountFilter)
+
+  function baseParams() {
+    const params = new URLSearchParams()
+    params.set("month", month)
+    if (q) params.set("q", q)
+    if (typeFilter) params.set("type", typeFilter)
+    if (bucketFilter) params.set("bucket", bucketFilter)
+    if (categoryFilter) params.set("category", categoryFilter)
+    return params
+  }
+
+  function accountHref(accountId: string) {
+    const params = baseParams()
+    if (accountFilter !== accountId) params.set("account", accountId)
+    return `/transactions?${params.toString()}`
+  }
+
+  const loadMoreParams = baseParams()
+  if (accountFilter) loadMoreParams.set("account", accountFilter)
+  loadMoreParams.set("limit", String(limit + LOAD_MORE_STEP))
+  const loadMoreHref = `/transactions?${loadMoreParams.toString()}`
+
+  const digitalBalances = accountBalances.filter((a) => !isPhysicalAccount(a.account_type))
+  const physicalBalances = accountBalances.filter((a) => isPhysicalAccount(a.account_type))
 
   return (
     <div className="space-y-6">
@@ -228,7 +270,35 @@ export default async function TransactionsPage({
 
           <Card>
             <CardHeader>
+              <CardTitle>Account Balances</CardTitle>
+              <CardDescription>Current balance, as of now — tap an account to filter below</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 sm:grid-cols-2">
+              <AccountBalanceList
+                title="Digital"
+                accounts={digitalBalances}
+                activeAccountId={accountFilter}
+                hrefFor={accountHref}
+              />
+              <AccountBalanceList
+                title="Physical"
+                accounts={physicalBalances}
+                activeAccountId={accountFilter}
+                hrefFor={accountHref}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>{monthLabel(month)}</CardTitle>
+              {transactions.length > 0 && (
+                <CardDescription>
+                  Showing {transactions.length}
+                  {hasMore ? "+" : ""} transaction{transactions.length === 1 ? "" : "s"}
+                  {hasFilters ? " — narrow your search or load more below" : ""}
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="divide-y divide-border p-0">
               {transactions.length === 0 ? (
@@ -239,9 +309,78 @@ export default async function TransactionsPage({
                 transactions.map((t) => <TransactionRow key={t.id} transaction={t} />)
               )}
             </CardContent>
+            {hasMore && (
+              <CardFooter>
+                <Button variant="outline" className="w-full" nativeButton={false} render={<Link href={loadMoreHref} />}>
+                  Load {LOAD_MORE_STEP} more
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AccountBalanceList({
+  title,
+  accounts,
+  activeAccountId,
+  hrefFor,
+}: Readonly<{
+  title: string
+  accounts: AccountBalance[]
+  activeAccountId?: string
+  hrefFor: (accountId: string) => string
+}>) {
+  if (accounts.length === 0) {
+    return (
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          {title}
+        </h3>
+        <p className="text-sm text-muted-foreground">None yet.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+        {title}
+      </h3>
+      <ul className="space-y-1">
+        {accounts.map((a) => {
+          const Icon = ACCOUNT_ICONS[a.account_type]
+          const isActive = a.account_id === activeAccountId
+          return (
+            <li key={a.account_id}>
+              {/* Plain anchor (not next/link): forces a full navigation so the
+                  Search & Filter selects re-initialize with the new account
+                  filter instead of keeping their stale defaultValue. */}
+              <a
+                href={hrefFor(a.account_id)}
+                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent ${
+                  isActive ? "bg-accent ring-1 ring-primary/40" : ""
+                }`}
+              >
+                <span className="flex items-center gap-2 text-foreground">
+                  <Icon className="size-4 text-muted-foreground" />
+                  {a.name}
+                </span>
+                <span
+                  className={`tabular-nums font-medium ${
+                    a.balance < 0 ? "text-destructive" : "text-foreground"
+                  }`}
+                >
+                  {formatPHP(a.balance)}
+                </span>
+              </a>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
