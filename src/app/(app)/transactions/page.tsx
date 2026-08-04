@@ -2,16 +2,19 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { ensureDefaultAccounts, isPhysicalAccount, ACCOUNT_ICONS, type AccountBalance } from "@/lib/accounts"
 import { ensureDefaultCategories, type Category } from "@/lib/categories"
-import { ensureDefaultSavingsGoals } from "@/lib/savings"
+import { ensureDefaultSavingsGoals, type SavingsGoalBalance } from "@/lib/savings"
+import { ensureDefaultSettings } from "@/lib/settings"
 import {
   currentMonth,
   monthRange,
+  aggregateByType,
   TRANSACTION_TYPES,
   EXPENSE_CLASSIFICATIONS,
   type TransactionDetail,
   type TransactionType,
 } from "@/lib/transactions"
 import { formatPHP, formatEnumLabel } from "@/lib/format"
+import { KpiCard, MiniStat, BudgetSplitStat } from "@/components/stat-cards"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -84,18 +87,45 @@ export default async function TransactionsPage({
   const requestedLimit = Number(limitParam)
   const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : DEFAULT_TX_LIMIT
 
-  const [{ data: accountsData }, { data: categoriesData }, { data: goalsData }, { data: balancesData }] =
-    await Promise.all([
-      supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
-      supabase.from("categories").select("*").eq("is_active", true).order("name"),
-      supabase.from("savings_goals").select("id, name").eq("is_active", true).order("name"),
-      supabase.from("account_balances").select("*").eq("is_active", true).order("name"),
-    ])
+  const [
+    { data: accountsData },
+    { data: categoriesData },
+    { data: goalsData },
+    { data: balancesData },
+    { data: goalBalancesData },
+    { data: monthTxData },
+    settings,
+  ] = await Promise.all([
+    supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
+    supabase.from("categories").select("*").eq("is_active", true).order("name"),
+    supabase.from("savings_goals").select("id, name").eq("is_active", true).order("name"),
+    supabase.from("account_balances").select("*").eq("is_active", true).order("name"),
+    supabase.from("savings_goal_balances").select("*").eq("is_active", true),
+    supabase
+      .from("transactions")
+      .select("type, amount, expense_classification")
+      .gte("transaction_date", start)
+      .lt("transaction_date", end),
+    ensureDefaultSettings(supabase, user.id),
+  ])
 
   const accounts = accountsData ?? []
   const categories = (categoriesData ?? []) as Category[]
   const goals = goalsData ?? []
   const accountBalances = (balancesData ?? []) as AccountBalance[]
+  const goalBalances = (goalBalancesData ?? []) as SavingsGoalBalance[]
+
+  const totalMoney = accountBalances.reduce((sum, a) => sum + a.balance, 0)
+  const savedMoney = goalBalances.reduce((sum, g) => sum + g.saved_amount, 0)
+  const availableToSpend = totalMoney - savedMoney
+
+  const { income, expense, savings } = aggregateByType(monthTxData ?? [])
+  const needs = (monthTxData ?? [])
+    .filter((t) => t.type === "EXPENSE" && t.expense_classification === "NEED")
+    .reduce((sum, t) => sum + t.amount, 0)
+  const wants = (monthTxData ?? [])
+    .filter((t) => t.type === "EXPENSE" && t.expense_classification === "WANT")
+    .reduce((sum, t) => sum + t.amount, 0)
 
   let txQuery = supabase
     .from("transaction_details")
@@ -265,6 +295,81 @@ export default async function TransactionsPage({
                   )}
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <KpiCard label="Total Money" hint="Sum of all active accounts" value={totalMoney} />
+            <KpiCard
+              label="Saved Money"
+              hint={`Across ${goalBalances.length} savings goal${goalBalances.length === 1 ? "" : "s"}`}
+              value={savedMoney}
+            />
+            <KpiCard
+              label="Available to Spend"
+              hint="Total minus saved"
+              value={availableToSpend}
+              emphasize
+              highlight
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Budget Split</CardTitle>
+              <CardDescription>
+                If {formatPHP(totalMoney)} followed your Settings targets — a visualization only,
+                nothing is actually divided or moved.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+                <div style={{ width: `${settings.needs_target_percentage}%` }} className="h-full bg-[var(--chart-2)]" />
+                <div style={{ width: `${settings.wants_target_percentage}%` }} className="h-full bg-[var(--chart-3)]" />
+                <div style={{ width: `${settings.savings_target_percentage}%` }} className="h-full bg-[var(--chart-4)]" />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <BudgetSplitStat
+                  label="Needs"
+                  percentage={settings.needs_target_percentage}
+                  amount={(totalMoney * settings.needs_target_percentage) / 100}
+                  swatch="bg-[var(--chart-2)]"
+                />
+                <BudgetSplitStat
+                  label="Wants"
+                  percentage={settings.wants_target_percentage}
+                  amount={(totalMoney * settings.wants_target_percentage) / 100}
+                  swatch="bg-[var(--chart-3)]"
+                />
+                <BudgetSplitStat
+                  label="Savings"
+                  percentage={settings.savings_target_percentage}
+                  amount={(totalMoney * settings.savings_target_percentage) / 100}
+                  swatch="bg-[var(--chart-4)]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Cash Flow — {monthLabel(month)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <MiniStat
+                  label="Income"
+                  value={income}
+                  tone="emerald"
+                />
+                <MiniStat
+                  label="Expenses"
+                  value={expense}
+                  tone="destructive"
+                  subtitle={`Needs ${formatPHP(needs)} · Wants ${formatPHP(wants)}`}
+                />
+                <MiniStat label="Savings" value={savings} />
+              </div>
             </CardContent>
           </Card>
 

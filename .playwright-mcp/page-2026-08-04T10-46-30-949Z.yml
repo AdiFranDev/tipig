@@ -1,0 +1,144 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - banner [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - generic [ref=f1e5]: Tipig
+        - navigation [ref=f1e9]:
+          - link "Overview" [ref=f1e10] [cursor=pointer]:
+            - /url: /
+          - link "Transactions" [ref=f1e11] [cursor=pointer]:
+            - /url: /transactions
+          - link "Accounts" [ref=f1e12] [cursor=pointer]:
+            - /url: /accounts
+          - link "Savings" [ref=f1e13] [cursor=pointer]:
+            - /url: /savings
+          - link "Annual" [ref=f1e14] [cursor=pointer]:
+            - /url: /annual
+          - link "Settings" [ref=f1e15] [cursor=pointer]:
+            - /url: /settings
+      - generic [ref=f1e16]:
+        - generic [ref=f1e17]: estebanfrancisadrian@gmail.com
+        - button "Toggle theme" [ref=f1e18]
+        - button "Sign Out" [ref=f1e20]
+    - main [ref=f1e21]:
+      - generic [ref=f1e22]:
+        - generic [ref=f1e23]:
+          - heading "Overview" [level=1] [ref=f1e24]
+          - generic [ref=f1e25]:
+            - button "‹" [ref=f1e26] [cursor=pointer]
+            - generic [ref=f1e27]: August 2026
+            - button "›" [ref=f1e28] [cursor=pointer]
+        - generic [ref=f1e29]:
+          - generic [ref=f1e31]:
+            - generic [ref=f1e32]: Total Money
+            - generic [ref=f1e33]: ₱1,891.68
+            - generic [ref=f1e34]: Sum of all active accounts
+          - generic [ref=f1e36]:
+            - generic [ref=f1e37]: Saved Money
+            - generic [ref=f1e38]: ₱1,213.31
+            - generic [ref=f1e39]: Across 3 savings goals
+          - generic [ref=f1e41]:
+            - generic [ref=f1e42]: Available to Spend
+            - generic [ref=f1e43]: ₱678.37
+            - generic [ref=f1e44]: Total minus saved
+        - generic [ref=f1e45]:
+          - generic [ref=f1e46]:
+            - generic [ref=f1e47]: Budget Split
+            - generic [ref=f1e48]: If ₱1,891.68 followed your Settings targets — a visualization only, nothing is actually divided or moved.
+          - generic [ref=f1e54]:
+            - generic [ref=f1e55]:
+              - paragraph [ref=f1e56]: Needs (30%)
+              - paragraph [ref=f1e58]: ₱567.50
+            - generic [ref=f1e59]:
+              - paragraph [ref=f1e60]: Wants (10%)
+              - paragraph [ref=f1e62]: ₱189.17
+            - generic [ref=f1e63]:
+              - paragraph [ref=f1e64]: Savings (60%)
+              - paragraph [ref=f1e66]: ₱1,135.01
+        - generic [ref=f1e67]:
+          - generic [ref=f1e68]: Cash Flow — August 2026
+          - generic [ref=f1e71]:
+            - generic [ref=f1e72]:
+              - paragraph [ref=f1e73]: Income
+              - paragraph [ref=f1e74]: ₱2,222.18
+            - generic [ref=f1e75]:
+              - paragraph [ref=f1e76]: Expenses
+              - paragraph [ref=f1e77]: ₱330.50
+              - paragraph [ref=f1e78]: Needs ₱75.00 · Wants ₱255.50
+            - generic [ref=f1e79]:
+              - paragraph [ref=f1e80]: Savings
+              - paragraph [ref=f1e81]: ₱1,213.31
+            - generic [ref=f1e82]:
+              - paragraph [ref=f1e83]: Net Cash Flow
+              - paragraph [ref=f1e84]: ₱1,891.68
+        - generic [ref=f1e88]:
+          - generic [ref=f1e89]:
+            - generic [ref=f1e90]: Physical Cash Breakdown
+            - generic [ref=f1e91]: Exact bill and coin counts on hand
+          - generic [ref=f1e92]:
+            - heading "Coin Pouch" [level=3] [ref=f1e94]
+            - heading "Paper Cash" [level=3] [ref=f1e99]
+        - generic [ref=f1e103]:
+          - generic [ref=f1e104]:
+            - generic [ref=f1e105]: Monthly Review
+            - generic [ref=f1e106]: ₱678.37 from August 2026 has not been swept into savings yet. Sweep it now, or leave it — it'll simply carry forward as Available to Spend.
+          - generic [ref=f1e108]:
+            - generic [ref=f1e109]:
+              - generic [ref=f1e110]: From Account
+              - combobox "From Account" [ref=f1e111]:
+                - generic [ref=f1e112]: Account
+                - img: ▼
+              - textbox [ref=f1e113]
+            - generic [ref=f1e114]:
+              - generic [ref=f1e115]: Sweep To
+              - combobox "Sweep To" [ref=f1e116]:
+                - generic [ref=f1e117]: Unallocated Savings
+                - img: ▼
+              - textbox [ref=f1e118]: UNALLOCATED
+            - button "Sweep ₱678.37" [ref=f1e119]
+        - generic [ref=f1e120]:
+          - generic [ref=f1e121]:
+            - generic [ref=f1e122]: Coins Quick Entry
+            - generic [ref=f1e123]: One tap to log a common small Coin Pouch expense
+          - generic [ref=f1e124]:
+            - button "Log ₱10 Jeepney Fare" [ref=f1e126]
+            - button "Log ₱15 Bao Bao Fare" [ref=f1e128]
+            - button "Log ₱10 Rela Fare" [ref=f1e130]
+            - button "Log ₱25 Snacks" [ref=f1e132]
+        - generic [ref=f1e133]:
+          - generic [ref=f1e134]:
+            - generic [ref=f1e135]: Account Locations
+            - generic [ref=f1e136]: Where your money physically sits
+          - generic [ref=f1e137]:
+            - generic [ref=f1e138]:
+              - heading "Digital" [level=3] [ref=f1e139]
+              - list [ref=f1e140]:
+                - listitem [ref=f1e141]:
+                  - generic [ref=f1e142]: Gcash
+                  - generic [ref=f1e146]: ₱0.00
+                - listitem [ref=f1e147]:
+                  - generic [ref=f1e148]: GoTyme
+                  - generic [ref=f1e151]: ₱0.00
+                - listitem [ref=f1e152]:
+                  - generic [ref=f1e153]: LandBank
+                  - generic [ref=f1e158]: ₱341.79
+                - listitem [ref=f1e159]:
+                  - generic [ref=f1e160]: MariBank
+                  - generic [ref=f1e163]: ₱1,444.89
+                - listitem [ref=f1e164]:
+                  - generic [ref=f1e165]: Maya
+                  - generic [ref=f1e169]: ₱0.00
+                - listitem [ref=f1e170]:
+                  - generic [ref=f1e171]: Wise
+                  - generic [ref=f1e175]: ₱0.00
+            - generic [ref=f1e176]:
+              - heading "Physical" [level=3] [ref=f1e177]
+              - list [ref=f1e178]:
+                - listitem [ref=f1e179]:
+                  - generic [ref=f1e180]: Coin Pouch
+                  - generic [ref=f1e186]: ₱105.00
+                - listitem [ref=f1e187]:
+                  - generic [ref=f1e188]: Paper Cash
+                  - generic [ref=f1e192]: ₱0.00
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f1e198] [cursor=pointer]
