@@ -318,7 +318,7 @@ export default async function TransactionsPage({
             <CardHeader>
               <CardTitle>Budget Split</CardTitle>
               <CardDescription>
-                If {formatPHP(totalMoney)} followed your Settings targets — a visualization only,
+                If {formatPHP(totalMoney)} followed your Settings targets: a visualization only,
                 nothing is actually divided or moved.
               </CardDescription>
             </CardHeader>
@@ -353,7 +353,7 @@ export default async function TransactionsPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Cash Flow — {monthLabel(month)}</CardTitle>
+              <CardTitle>Cash Flow: {monthLabel(month)}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
@@ -376,7 +376,7 @@ export default async function TransactionsPage({
           <Card>
             <CardHeader>
               <CardTitle>Account Balances</CardTitle>
-              <CardDescription>Current balance, as of now — tap an account to filter below</CardDescription>
+              <CardDescription>Current balance, as of now: tap an account to filter below</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 sm:grid-cols-2">
               <AccountBalanceList
@@ -401,7 +401,7 @@ export default async function TransactionsPage({
                 <CardDescription>
                   Showing {transactions.length}
                   {hasMore ? "+" : ""} transaction{transactions.length === 1 ? "" : "s"}
-                  {hasFilters ? " — narrow your search or load more below" : ""}
+                  {hasFilters ? ". Narrow your search or load more below" : ""}
                 </CardDescription>
               )}
             </CardHeader>

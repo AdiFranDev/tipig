@@ -14,6 +14,16 @@
 # AI & Agent Context Files
 .agents/rules/project-context2.md
 .agents/rules/project-context.md
+.agents/rules/anti-hallucination-constraints.md
+.agents/rules/component-architecture-standards.md  
+.agents/rules/comprehensive-error-handling (1).md
+.agents/rules/performance-first-development.md
+.agents/rules/responsive-design-standards.md
+.agents/rules/secure-by-default.md
+.agents/rules/senior-engineer-persona.md
+.agents/rules/strict-code-preservation.md
+.agents/rules/typescript-strictness-enforcement.md
+.agents/rules/ui-context.md
 AGENTS.md
 gemini.md
 supabase.md

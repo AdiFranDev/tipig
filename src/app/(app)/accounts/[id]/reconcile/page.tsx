@@ -43,7 +43,7 @@ export default async function ReconcileAccountPage({
           <CardTitle>Physical Adjustment / Loss</CardTitle>
           <CardDescription>
             Count what&apos;s actually in {account.name} and enter it below. Any difference from
-            what&apos;s recorded becomes an explicit adjustment transaction — nothing is
+            what&apos;s recorded becomes an explicit adjustment transaction. Nothing is
             overwritten silently.
           </CardDescription>
         </CardHeader>
@@ -72,7 +72,7 @@ export default async function ReconcileAccountPage({
             ))}
             <p className="text-xs text-muted-foreground">
               Leave a row unchanged if the count matches. Only rows you edit create a
-              difference — a shortfall logs a Physical Adjustment/Loss expense; extra cash found
+              difference: a shortfall logs a Physical Adjustment/Loss expense; extra cash found
               logs a Physical Adjustment/Gain income.
             </p>
             <Button type="submit" className="w-full">

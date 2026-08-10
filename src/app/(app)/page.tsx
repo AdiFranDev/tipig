@@ -135,7 +135,7 @@ export default async function DashboardOverview({
         <CardHeader>
           <CardTitle>Budget Split</CardTitle>
           <CardDescription>
-            If {formatPHP(totalMoney)} followed your Settings targets — a visualization only,
+            If {formatPHP(totalMoney)} followed your Settings targets: a visualization only,
             nothing is actually divided or moved.
           </CardDescription>
         </CardHeader>
@@ -170,7 +170,7 @@ export default async function DashboardOverview({
 
       <Card>
         <CardHeader>
-          <CardTitle>Cash Flow — {monthLabel(month)}</CardTitle>
+          <CardTitle>Cash Flow: {monthLabel(month)}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -224,7 +224,7 @@ export default async function DashboardOverview({
             <CardTitle>Monthly Review</CardTitle>
             <CardDescription>
               {formatPHP(monthlyRemaining)} from {monthLabel(month)}{" "}
-              has not been swept into savings yet. Sweep it now, or leave it — it&apos;ll simply
+              has not been swept into savings yet. Sweep it now, or leave it: it&apos;ll simply
               carry forward as Available to Spend.
             </CardDescription>
           </CardHeader>

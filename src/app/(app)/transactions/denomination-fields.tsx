@@ -125,8 +125,8 @@ export function ExpenseDenominationFields({
       )}
       {insufficient ? (
         <p className="text-xs text-destructive">
-          Handed over ({formatPHP(handedOver.total)}) is less than the expense ({formatPHP(amount)}) —
-          hand over enough to cover it.
+          Handed over ({formatPHP(handedOver.total)}) is less than the expense ({formatPHP(amount)}).
+          Hand over enough to cover it.
         </p>
       ) : (
         <>
@@ -135,7 +135,7 @@ export function ExpenseDenominationFields({
             <p className="text-xs text-muted-foreground">✓ Handed over − expense = change.</p>
           ) : (
             <p className="text-xs text-destructive">
-              Change received doesn&apos;t match — expected {formatPHP(expected)}, got{" "}
+              Change received doesn&apos;t match: expected {formatPHP(expected)}, got{" "}
               {formatPHP(changeTotal)}.
             </p>
           )}
@@ -201,7 +201,7 @@ export function IncomeDenominationFields({
         <p className="text-xs text-muted-foreground">✓ Matches the income amount.</p>
       ) : (
         <p className="text-xs text-destructive">
-          Doesn&apos;t match the income amount ({formatPHP(amount)}) — got {formatPHP(receivedTotal)}.
+          Doesn&apos;t match the income amount ({formatPHP(amount)}): got {formatPHP(receivedTotal)}.
         </p>
       )}
     </div>
@@ -257,13 +257,13 @@ export function BreakingBillsFields({
         <>
           {!outMatches && (
             <p className="text-xs text-destructive">
-              Take Out doesn&apos;t match the transfer amount ({formatPHP(amount)}) — got{" "}
+              Take Out doesn&apos;t match the transfer amount ({formatPHP(amount)}): got{" "}
               {formatPHP(out.total)}.
             </p>
           )}
           {!inMatches && (
             <p className="text-xs text-destructive">
-              Put In doesn&apos;t match the transfer amount ({formatPHP(amount)}) — got{" "}
+              Put In doesn&apos;t match the transfer amount ({formatPHP(amount)}): got{" "}
               {formatPHP(inn.total)}.
             </p>
           )}

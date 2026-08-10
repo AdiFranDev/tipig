@@ -85,7 +85,7 @@ export function BudgetRatiosForm({
         <p className={`text-xs ${isValid ? "text-muted-foreground" : "text-destructive"}`}>
           {isValid
             ? "Needs + Wants + Savings = 100%"
-            : `Total is ${total}% — must equal exactly 100% to save`}
+            : `Total is ${total}%: must equal exactly 100% to save`}
         </p>
       </div>
 
