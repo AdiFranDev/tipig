@@ -267,3 +267,32 @@ The `funding_source` selection must not be hidden. It must be a prominent, segme
 The system must not physically block digital overdrafts, but it must explicitly warn the user before submission.
 *   **Safe State:** If `projectedBalance >= 0`, the submit button is a solid, vibrant Emerald reading "Add Transaction".
 *   **Warning State:** If `projectedBalance < 0`, the submit button instantly turns into a destructive/warning variant (e.g., muted red or amber). The label must change to explicitly state the consequence: `Add Anyway (Available Balance will drop to ₱[projectedBalance])`.
+
+## Phase 11: Serverless Email Notifications (v2.1.0)
+
+Version 2.1.0 introduces an active notification layer to the Tipig architecture, transitioning the application from a passive tracking tool to a proactive financial assistant. The system leverages Resend for email delivery, React Email for templating, and Vercel Cron for automated scheduling.
+
+### 1. The Technology Stack
+*   **Delivery API:** Resend (Lightweight, developer-friendly, Next.js optimized).
+*   **Templating:** React Email (Allows building responsive HTML emails using React components and standard Tailwind CSS classes to match Tipig's dark-mode bento-box aesthetic).
+*   **Automation:** Vercel Cron Jobs (Triggers serverless API routes on a defined schedule).
+
+### 2. Notification Triggers (The "When")
+The system will support two distinct operational patterns:
+*   **Event-Driven (The Guardrail):** Triggered immediately via Next.js Server Actions. If a newly logged `EXPENSE` drives the `Available to Spend` balance below ₱0, an asynchronous function fires off a "Budget Overdraft Warning" email.
+*   **Time-Driven (The Digest):** Triggered via a secure API Route (`/api/cron/weekly-summary`) called by Vercel Cron every Sunday at 8:00 AM. This digest summarizes the week's total income, expenses, and remaining available cash flow.
+
+### 3. Implementation Steps & Architecture
+1.  **Dependency Initialization:** 
+    *   Install `resend` and `@react-email/components`.
+    *   Configure the `RESEND_API_KEY` in the local `.env.local` and Vercel environment variables.
+2.  **Template Directory (`src/emails`):**
+    *   Create a dedicated directory outside of the standard `app` router for email templates.
+    *   Build `<WeeklyDigestEmail />` and `<OverdraftWarningEmail />` using Tailwind styling to mirror the Tipig brand (e.g., zinc backgrounds, emerald/red accents).
+3.  **The API Route / Cron Job:**
+    *   Create `src/app/api/cron/weekly-summary/route.ts`.
+    *   Implement authorization checking `request.headers.get('Authorization') === \`Bearer \${process.env.CRON_SECRET}\`` to prevent unauthorized triggers.
+    *   Fetch the week's transaction data from Supabase, calculate the KPIs, and await the Resend email transmission.
+4.  **Action Integration:**
+    *   In `src/app/(app)/transactions/actions.ts`, import the Resend client. 
+    *   Add a non-blocking, asynchronous email call immediately after the Supabase database mutation if the resultant balance check triggers the overdraft condition.
