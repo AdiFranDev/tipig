@@ -9,6 +9,21 @@ import type { CategoryType, ExpenseClassification } from "@/lib/categories"
 const CATEGORY_TYPES: readonly CategoryType[] = ["INCOME", "EXPENSE"]
 const EXPENSE_CLASSIFICATIONS: readonly ExpenseClassification[] = ["NEED", "WANT"]
 
+function parseCategoryType(value: FormDataEntryValue | null): CategoryType {
+  const str = typeof value === "string" ? value : ""
+  if (!CATEGORY_TYPES.includes(str as CategoryType)) throw new Error("Invalid category type")
+  return str as CategoryType
+}
+
+function parseDefaultExpenseClassification(
+  categoryType: CategoryType,
+  value: FormDataEntryValue | null
+): ExpenseClassification | null {
+  if (categoryType !== "EXPENSE") return null
+  const str = typeof value === "string" ? value : ""
+  return EXPENSE_CLASSIFICATIONS.includes(str as ExpenseClassification) ? (str as ExpenseClassification) : null
+}
+
 export async function updateBudgetRatios(formData: FormData): Promise<ActionResult> {
   return toActionResult(async () => {
     const supabase = await createClient()
@@ -55,16 +70,11 @@ export async function createCategory(formData: FormData): Promise<ActionResult> 
     const name = String(formData.get("name") ?? "").trim()
     if (!name) throw new Error("Name is required")
 
-    const category_type = String(formData.get("category_type") ?? "")
-    if (!CATEGORY_TYPES.includes(category_type as CategoryType)) {
-      throw new Error("Invalid category type")
-    }
-
-    const rawClassification = String(formData.get("default_expense_classification") ?? "")
-    const default_expense_classification =
-      category_type === "EXPENSE" && EXPENSE_CLASSIFICATIONS.includes(rawClassification as ExpenseClassification)
-        ? rawClassification
-        : null
+    const category_type = parseCategoryType(formData.get("category_type"))
+    const default_expense_classification = parseDefaultExpenseClassification(
+      category_type,
+      formData.get("default_expense_classification")
+    )
 
     const { error } = await supabase.from("categories").insert({
       user_id: user.id,
@@ -90,16 +100,11 @@ export async function updateCategory(categoryId: string, formData: FormData): Pr
     const name = String(formData.get("name") ?? "").trim()
     if (!name) throw new Error("Name is required")
 
-    const category_type = String(formData.get("category_type") ?? "")
-    if (!CATEGORY_TYPES.includes(category_type as CategoryType)) {
-      throw new Error("Invalid category type")
-    }
-
-    const rawClassification = String(formData.get("default_expense_classification") ?? "")
-    const default_expense_classification =
-      category_type === "EXPENSE" && EXPENSE_CLASSIFICATIONS.includes(rawClassification as ExpenseClassification)
-        ? rawClassification
-        : null
+    const category_type = parseCategoryType(formData.get("category_type"))
+    const default_expense_classification = parseDefaultExpenseClassification(
+      category_type,
+      formData.get("default_expense_classification")
+    )
 
     const is_active = formData.get("is_active") === "on"
 

@@ -208,10 +208,116 @@ export function IncomeDenominationFields({
   )
 }
 
+/** TRANSFER out of a physical account into a non-physical one (e.g. depositing cash into a bank account) — no "change", the full amount must leave as denominations. */
+export function TransferOutDenominationFields({
+  denominations,
+  amount,
+  initialOut,
+  onValidityChange,
+}: Readonly<{
+  denominations: readonly number[]
+  amount: number
+  initialOut?: Record<number, number>
+  onValidityChange?: (valid: boolean) => void
+}>) {
+  const out = useQuantities(denominations, initialOut)
+  const valid = Math.abs(out.total - amount) < 0.001
+
+  useEffect(() => {
+    onValidityChange?.(valid)
+  }, [valid, onValidityChange])
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <p className="text-sm font-medium text-foreground">HANDED OVER DENOMINATIONS</p>
+      <DenominationGrid
+        legend="Handed Over"
+        prefix="out"
+        denominations={denominations}
+        quantities={out.quantities}
+        onChange={(d, qty) => out.setQuantities((q) => ({ ...q, [d]: qty }))}
+      />
+      {valid ? (
+        <p className="text-xs text-muted-foreground">✓ Matches the transfer amount.</p>
+      ) : (
+        <p className="text-xs text-red-500">
+          Doesn&apos;t match the transfer amount ({formatPHP(amount)}): got {formatPHP(out.total)}.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * TRANSFER into a physical account from a non-physical one (e.g. withdrawing
+ * cash from a bank into Paper Cash) — no "change", the full amount must
+ * arrive as denominations. Money received can span both physical accounts
+ * too (e.g. mostly bills plus a few coins from the same withdrawal) —
+ * `otherAccount`'s denominations post there, not to the primary
+ * destination, mirroring `IncomeDenominationFields`' cross-account receipt.
+ */
+export function TransferInDenominationFields({
+  denominations,
+  amount,
+  initialIn,
+  otherDenominations,
+  otherAccountLabel,
+  initialInOther,
+  onValidityChange,
+}: Readonly<{
+  denominations: readonly number[]
+  amount: number
+  initialIn?: Record<number, number>
+  otherDenominations?: readonly number[]
+  otherAccountLabel?: string
+  initialInOther?: Record<number, number>
+  onValidityChange?: (valid: boolean) => void
+}>) {
+  const inn = useQuantities(denominations, initialIn)
+  const inOther = useQuantities(otherDenominations ?? [], initialInOther)
+  const total = Math.round((inn.total + inOther.total) * 100) / 100
+  const valid = Math.abs(total - amount) < 0.001
+
+  useEffect(() => {
+    onValidityChange?.(valid)
+  }, [valid, onValidityChange])
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <p className="text-sm font-medium text-foreground">RECEIVED DENOMINATIONS</p>
+      <DenominationGrid
+        legend="Received"
+        prefix="in"
+        denominations={denominations}
+        quantities={inn.quantities}
+        onChange={(d, qty) => inn.setQuantities((q) => ({ ...q, [d]: qty }))}
+      />
+      {otherDenominations && otherDenominations.length > 0 && (
+        <DenominationGrid
+          legend={`Received (${otherAccountLabel ?? "other"})`}
+          prefix="in_other"
+          denominations={otherDenominations}
+          quantities={inOther.quantities}
+          onChange={(d, qty) => inOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+        />
+      )}
+      {valid ? (
+        <p className="text-xs text-muted-foreground">✓ Matches the transfer amount.</p>
+      ) : (
+        <p className="text-xs text-red-500">
+          Doesn&apos;t match the transfer amount ({formatPHP(amount)}): got {formatPHP(total)}.
+        </p>
+      )}
+    </div>
+  )
+}
+
 /** "Breaking Bills" — money out of one physical account, in as different denominations to another. */
 export function BreakingBillsFields({
   sourceDenominations,
   destDenominations,
+  sourceAccountName,
+  destAccountName,
   amount,
   initialOut,
   initialIn,
@@ -219,6 +325,8 @@ export function BreakingBillsFields({
 }: Readonly<{
   sourceDenominations: readonly number[]
   destDenominations: readonly number[]
+  sourceAccountName: string
+  destAccountName: string
   amount: number
   initialOut?: Record<number, number>
   initialIn?: Record<number, number>
@@ -238,14 +346,14 @@ export function BreakingBillsFields({
     <div className="space-y-3 rounded-lg border border-border p-3">
       <p className="text-sm font-medium text-foreground">Breaking Bills Breakdown</p>
       <DenominationGrid
-        legend="Take Out (from source)"
+        legend={`HANDED OVER: ${sourceAccountName}`}
         prefix="out"
         denominations={sourceDenominations}
         quantities={out.quantities}
         onChange={(d, qty) => out.setQuantities((q) => ({ ...q, [d]: qty }))}
       />
       <DenominationGrid
-        legend="Put In (to destination)"
+        legend={`RECEIVED: ${destAccountName}`}
         prefix="in"
         denominations={destDenominations}
         quantities={inn.quantities}
@@ -256,14 +364,14 @@ export function BreakingBillsFields({
       ) : (
         <>
           {!outMatches && (
-            <p className="text-xs text-destructive">
-              Take Out doesn&apos;t match the transfer amount ({formatPHP(amount)}): got{" "}
+            <p className="text-xs text-red-500">
+              Handed Over doesn&apos;t match the transfer amount ({formatPHP(amount)}): got{" "}
               {formatPHP(out.total)}.
             </p>
           )}
           {!inMatches && (
-            <p className="text-xs text-destructive">
-              Put In doesn&apos;t match the transfer amount ({formatPHP(amount)}): got{" "}
+            <p className="text-xs text-red-500">
+              Received doesn&apos;t match the transfer amount ({formatPHP(amount)}): got{" "}
               {formatPHP(inn.total)}.
             </p>
           )}

@@ -1,4 +1,5 @@
 import { Landmark, Building2, Wallet, Banknote, Coins } from "lucide-react"
+import type { Database } from "@/types/supabase"
 
 export const ACCOUNT_TYPES = [
   { value: "DIGITAL_BANK", label: "Digital Bank", group: "digital" },
@@ -6,7 +7,7 @@ export const ACCOUNT_TYPES = [
   { value: "E_WALLET", label: "E-Wallet", group: "digital" },
   { value: "PAPER_CASH", label: "Paper Cash", group: "physical" },
   { value: "COIN_POUCH", label: "Coin Pouch", group: "physical" },
-] as const
+] as const satisfies readonly { value: Database["public"]["Enums"]["account_type"]; label: string; group: string }[]
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number]["value"]
 
@@ -37,7 +38,7 @@ export const DEFAULT_ACCOUNTS: { name: string; account_type: AccountType }[] = [
 ]
 
 export async function ensureDefaultAccounts(
-  supabase: import("@supabase/supabase-js").SupabaseClient,
+  supabase: import("@supabase/supabase-js").SupabaseClient<Database>,
   userId: string
 ) {
   const { count } = await supabase
@@ -51,7 +52,10 @@ export async function ensureDefaultAccounts(
   }
 }
 
-export type AccountOption = { id: string; name: string; account_type: AccountType }
+export type AccountOption = Pick<
+  Database["public"]["Tables"]["accounts"]["Row"],
+  "id" | "name" | "account_type"
+>
 
 export type AccountBalance = {
   account_id: string
@@ -60,6 +64,28 @@ export type AccountBalance = {
   opening_balance: number
   is_active: boolean
   balance: number
+}
+
+/**
+ * `account_balances` is a Postgres view, so Supabase's generated types mark
+ * every column nullable even though the view's SQL always populates them.
+ * Narrow once here, at the data-fetching boundary, instead of scattering
+ * `??`/`!` through components.
+ */
+export function toAccountBalance(
+  row: Pick<
+    Database["public"]["Views"]["account_balances"]["Row"],
+    "account_id" | "name" | "account_type" | "opening_balance" | "is_active" | "balance"
+  >
+): AccountBalance {
+  return {
+    account_id: row.account_id!,
+    name: row.name!,
+    account_type: row.account_type!,
+    opening_balance: row.opening_balance!,
+    is_active: row.is_active!,
+    balance: row.balance!,
+  }
 }
 
 /** The Hard Floor: blocks an EXPENSE/SAVINGS that would exceed the account's current balance. */

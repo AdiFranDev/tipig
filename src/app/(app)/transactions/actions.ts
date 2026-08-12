@@ -12,17 +12,25 @@ import {
   type FundingSource,
 } from "@/lib/transactions"
 import { computeSavingsSplit } from "@/lib/savings"
-import { isPhysicalAccount, assertSufficientBalance } from "@/lib/accounts"
+import { isPhysicalAccount, assertSufficientBalance, toAccountBalance } from "@/lib/accounts"
+import { INTEREST_CATEGORY_NAME } from "@/lib/categories"
 import { denominationsFor, denominationFieldName } from "@/lib/denominations"
 import { toActionResult, type ActionResult } from "@/lib/action-result"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/supabase"
+import { z } from "zod"
 
-function parseEnum<T extends string>(
-  value: FormDataEntryValue | null,
-  allowed: readonly T[]
-): T | null {
-  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) return null
-  return value as T
+/**
+ * Supabase's generated RPC Args type reports every `save_transaction_with_denominations`
+ * SQL parameter as required and non-null, but the Postgres function itself accepts NULL
+ * for several of them (transaction_id defaults via gen_random_uuid(); destination/category/
+ * savings-goal ids are legitimately absent depending on transaction type). Postgres function
+ * introspection doesn't expose parameter nullability the way table columns do, so the
+ * generator can't know this — widen locally instead of fighting the generator.
+ */
+type SaveTransactionArgs = {
+  [K in keyof Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]]:
+    Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"][K] | null
 }
 
 type TransactionPayload = {
@@ -38,11 +46,56 @@ type TransactionPayload = {
   savings_goal_id: string | null
 }
 
+const isUuid = (value: string) => z.uuid().safeParse(value).success
+
+/**
+ * Base shape is intentionally permissive on the conditional fields (empty
+ * string allowed) — which of them are actually required depends on `type`,
+ * enforced below in `.superRefine`. `expense_classification`/`funding_source`
+ * use `z.union([enum, literal("")])` rather than a plain `z.string()` so the
+ * parsed type stays a real literal union with no `as` cast needed when
+ * building the final payload.
+ */
+const transactionFormSchema = z
+  .object({
+    type: z.enum(TRANSACTION_TYPES, "Invalid transaction type"),
+    transaction_date: z.string().min(1, "Date is required"),
+    amount: z.coerce.number("Invalid amount").positive("Invalid amount"),
+    description: z.string(),
+    account_id: z.uuid("Account is required"),
+    destination_account_id: z.string(),
+    category_id: z.string(),
+    expense_classification: z.union([z.enum(EXPENSE_CLASSIFICATIONS), z.literal("")]),
+    funding_source: z.union([z.enum(FUNDING_SOURCES), z.literal("")]),
+    savings_goal_id: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === "INCOME") {
+      if (!isUuid(data.category_id)) ctx.addIssue("Category is required")
+    } else if (data.type === "EXPENSE") {
+      if (!isUuid(data.category_id)) ctx.addIssue("Category is required")
+      if (data.expense_classification === "") ctx.addIssue("Expense classification is required")
+      if (data.funding_source === "") {
+        ctx.addIssue("Funding source is required")
+      } else if (data.funding_source === "SAVED_MONEY" && !isUuid(data.savings_goal_id)) {
+        ctx.addIssue("Savings goal is required when spending saved money")
+      }
+    } else if (data.type === "TRANSFER") {
+      if (!isUuid(data.destination_account_id)) {
+        ctx.addIssue("Destination account is required")
+      } else if (data.destination_account_id === data.account_id) {
+        ctx.addIssue("Destination account must differ from the source account")
+      }
+    }
+    // SAVINGS needs no extra fields here — see applySavingsSplit.
+  })
+
 /**
  * One transaction form covers four very different shapes of row. This
- * parses+validates the raw FormData once and returns a full column patch
- * (irrelevant fields explicitly nulled) so switching a transaction's type
- * on edit can't leave stale values from the old type behind.
+ * parses+validates the raw FormData once via `transactionFormSchema` and
+ * returns a full column patch (irrelevant fields explicitly nulled) so
+ * switching a transaction's type on edit can't leave stale values from the
+ * old type behind.
  *
  * `payload.savings_goal_id` is only for an EXPENSE drawing on a single goal
  * (SAVED_MONEY funding) — a single-goal draw needs no split. A SAVINGS
@@ -51,67 +104,37 @@ type TransactionPayload = {
  * goal by percentage.
  */
 function parseTransactionForm(formData: FormData): TransactionPayload {
-  const type = parseEnum<TransactionType>(formData.get("type"), TRANSACTION_TYPES)
-  if (!type) throw new Error("Invalid transaction type")
-
-  const transaction_date = String(formData.get("transaction_date") ?? "")
-  if (!transaction_date) throw new Error("Date is required")
-
-  const amount = Number(formData.get("amount"))
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid amount")
-
-  const description = String(formData.get("description") ?? "").trim() || null
-  const account_id = String(formData.get("account_id") ?? "")
-  if (!account_id) throw new Error("Account is required")
-
-  const payload: TransactionPayload = {
-    type,
-    transaction_date,
-    amount,
-    description,
-    account_id,
-    destination_account_id: null,
-    category_id: null,
-    expense_classification: null,
-    funding_source: null,
-    savings_goal_id: null,
+  const result = transactionFormSchema.safeParse({
+    type: String(formData.get("type") ?? ""),
+    transaction_date: String(formData.get("transaction_date") ?? ""),
+    amount: String(formData.get("amount") ?? ""),
+    description: String(formData.get("description") ?? "").trim(),
+    account_id: String(formData.get("account_id") ?? ""),
+    destination_account_id: String(formData.get("destination_account_id") ?? ""),
+    category_id: String(formData.get("category_id") ?? ""),
+    expense_classification: String(formData.get("expense_classification") ?? ""),
+    funding_source: String(formData.get("funding_source") ?? ""),
+    savings_goal_id: String(formData.get("savings_goal_id") ?? ""),
+  })
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid transaction data")
   }
+  const data = result.data
 
-  if (type === "INCOME") {
-    payload.category_id = String(formData.get("category_id") ?? "")
-    if (!payload.category_id) throw new Error("Category is required")
-  } else if (type === "EXPENSE") {
-    payload.category_id = String(formData.get("category_id") ?? "")
-    if (!payload.category_id) throw new Error("Category is required")
-
-    payload.expense_classification = parseEnum<ExpenseClassification>(
-      formData.get("expense_classification"),
-      EXPENSE_CLASSIFICATIONS
-    )
-    if (!payload.expense_classification) throw new Error("Expense classification is required")
-
-    payload.funding_source = parseEnum<FundingSource>(
-      formData.get("funding_source"),
-      FUNDING_SOURCES
-    )
-    if (!payload.funding_source) throw new Error("Funding source is required")
-
-    if (payload.funding_source === "SAVED_MONEY") {
-      payload.savings_goal_id = String(formData.get("savings_goal_id") ?? "")
-      if (!payload.savings_goal_id) {
-        throw new Error("Savings goal is required when spending saved money")
-      }
-    }
-  } else if (type === "TRANSFER") {
-    payload.destination_account_id = String(formData.get("destination_account_id") ?? "")
-    if (!payload.destination_account_id) throw new Error("Destination account is required")
-    if (payload.destination_account_id === account_id) {
-      throw new Error("Destination account must differ from the source account")
-    }
+  return {
+    type: data.type,
+    transaction_date: data.transaction_date,
+    amount: data.amount,
+    description: data.description || null,
+    account_id: data.account_id,
+    destination_account_id: data.type === "TRANSFER" ? data.destination_account_id : null,
+    category_id: data.type === "INCOME" || data.type === "EXPENSE" ? data.category_id : null,
+    expense_classification:
+      data.type === "EXPENSE" && data.expense_classification !== "" ? data.expense_classification : null,
+    funding_source: data.type === "EXPENSE" && data.funding_source !== "" ? data.funding_source : null,
+    savings_goal_id:
+      data.type === "EXPENSE" && data.funding_source === "SAVED_MONEY" ? data.savings_goal_id : null,
   }
-  // SAVINGS needs no extra fields here — see applySavingsSplit.
-
-  return payload
 }
 
 /** Replaces a SAVINGS transaction's allocations with a fresh even split. */
@@ -129,7 +152,7 @@ async function applySavingsSplit(
 
   const unallocatedGoal = goals?.find((g) => g.is_unallocated)
   if (!unallocatedGoal) {
-    throw new Error("No Unallocated Savings goal found — visit the Savings page first")
+    throw new Error("No Unallocated Savings goal found. Visit the Savings page first")
   }
 
   const activeGoalIds = (goals ?? []).filter((g) => !g.is_unallocated).map((g) => g.id)
@@ -145,6 +168,66 @@ async function applySavingsSplit(
     }))
   )
   if (error) throw new Error(error.message)
+}
+
+/**
+ * Interest is real new money — it must increase Total Money, which means it
+ * has to be an INCOME row (account_balances.balance only sums INCOME/EXPENSE/
+ * TRANSFER, see oldEffectOnAccount above). But it should never read as
+ * spendable, so it's immediately reserved: a paired SAVINGS row + a
+ * savings_allocations entry into Unallocated Savings. SAVINGS never affects
+ * account_balances.balance, so Saved Money rises by the same amount and
+ * Available to Spend nets out unchanged. Mirrors sweepMonth's existing
+ * multi-insert pattern rather than introducing a new atomic RPC.
+ */
+async function recordInterestIncome(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  payload: TransactionPayload
+): Promise<void> {
+  const { error: incomeError } = await supabase.from("transactions").insert({
+    user_id: userId,
+    type: "INCOME",
+    transaction_date: payload.transaction_date,
+    amount: payload.amount,
+    description: payload.description,
+    account_id: payload.account_id,
+    category_id: payload.category_id,
+  })
+  if (incomeError) throw new Error(incomeError.message)
+
+  const { data: unallocated } = await supabase
+    .from("savings_goals")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_unallocated", true)
+    .single()
+  if (!unallocated) throw new Error("No Unallocated Savings goal found")
+
+  const { data: savingsRow, error: savingsError } = await supabase
+    .from("transactions")
+    .insert({
+      user_id: userId,
+      type: "SAVINGS",
+      transaction_date: payload.transaction_date,
+      amount: payload.amount,
+      account_id: payload.account_id,
+      description: payload.description ?? INTEREST_CATEGORY_NAME,
+    })
+    .select("id")
+    .single()
+  if (savingsError || !savingsRow) {
+    throw new Error(savingsError?.message ?? "Failed to reserve interest into savings")
+  }
+
+  const { error: allocError } = await supabase.from("savings_allocations").insert({
+    user_id: userId,
+    transaction_id: savingsRow.id,
+    savings_goal_id: unallocated.id,
+    amount: payload.amount,
+    allocation_type: "INTEREST",
+  })
+  if (allocError) throw new Error(allocError.message)
 }
 
 type DenominationEntry = { denomination: number; quantity: number }
@@ -278,14 +361,14 @@ async function validatePhysicalExpense(
 
   if (handedTotal < amount) {
     throw new Error(
-      `Handed over (₱${handedTotal}) is less than the expense (₱${amount}) — hand over enough to cover it`
+      `Handed over (₱${handedTotal}) is less than the expense (₱${amount}). Hand over enough to cover it`
     )
   }
 
   const expectedChange = Math.round((handedTotal - amount) * 100) / 100
   if (Math.round((expectedChange - changeTotal) * 100) / 100 !== 0) {
     throw new Error(
-      `Handed over (₱${handedTotal}) minus the expense (₱${amount}) must equal change — expected ₱${expectedChange}, got ₱${changeTotal}`
+      `Handed over (₱${handedTotal}) minus the expense (₱${amount}) must equal change: expected ₱${expectedChange}, got ₱${changeTotal}`
     )
   }
 
@@ -424,6 +507,96 @@ async function validateBreakingBills(
 }
 
 /**
+ * Validates a TRANSFER whose source is physical but the destination isn't
+ * (e.g. depositing Paper Cash into a digital bank account) — the bills/coins
+ * handed over must sum to exactly the transfer amount. No "change" concept
+ * (unlike EXPENSE): the full amount leaves the source account.
+ */
+async function validatePhysicalTransferOut(
+  supabase: SupabaseClient,
+  userId: string,
+  sourceAccountId: string,
+  sourceAccountType: string,
+  amount: number,
+  formData: FormData,
+  excludeTransactionId?: string
+): Promise<DenominationRow[]> {
+  const out = parseDenominationQuantities(formData, "out", denominationsFor(sourceAccountType as never))
+
+  if (out.length === 0) {
+    throw new Error("Denomination breakdown is required for a physical cash deposit")
+  }
+
+  const outTotal = totalOf(out)
+  if (outTotal !== amount) {
+    throw new Error(`Denomination breakdown (₱${outTotal}) must equal the transfer amount (₱${amount})`)
+  }
+
+  await assertDenominationsAvailable(supabase, sourceAccountId, out, excludeTransactionId)
+
+  return out.map((o) => ({
+    user_id: userId,
+    account_id: sourceAccountId,
+    denomination: o.denomination,
+    quantity: o.quantity,
+    direction: "OUT" as const,
+  }))
+}
+
+/**
+ * Validates a TRANSFER whose destination is physical but the source isn't
+ * (e.g. withdrawing cash from a digital bank into Paper Cash) — the bills/
+ * coins received must sum to exactly the transfer amount. No Hard Floor
+ * check: an IN movement can never drain a denomination past zero.
+ *
+ * Money received can span both physical accounts too (e.g. mostly Paper
+ * Cash bills plus a few Coin Pouch coins from the same withdrawal) —
+ * `otherAccount`'s denominations post to that account's ledger, not the
+ * destination's, mirroring `validateIncomeDenomination`'s cross-account
+ * receipt.
+ */
+function validatePhysicalTransferIn(
+  userId: string,
+  destAccountId: string,
+  destAccountType: string,
+  amount: number,
+  formData: FormData,
+  otherAccount?: { id: string; type: string }
+): DenominationRow[] {
+  const inn = parseDenominationQuantities(formData, "in", denominationsFor(destAccountType as never))
+  const otherDenominations = otherAccount ? denominationsFor(otherAccount.type as never) : []
+  const inOther = otherAccount
+    ? parseDenominationQuantities(formData, "in_other", otherDenominations)
+    : []
+
+  if (inn.length === 0 && inOther.length === 0) {
+    throw new Error("Denomination breakdown is required for a physical cash withdrawal")
+  }
+
+  const inTotal = Math.round((totalOf(inn) + totalOf(inOther)) * 100) / 100
+  if (inTotal !== amount) {
+    throw new Error(`Denomination breakdown (₱${inTotal}) must equal the transfer amount (₱${amount})`)
+  }
+
+  return [
+    ...inn.map((i) => ({
+      user_id: userId,
+      account_id: destAccountId,
+      denomination: i.denomination,
+      quantity: i.quantity,
+      direction: "IN" as const,
+    })),
+    ...inOther.map((i) => ({
+      user_id: userId,
+      account_id: otherAccount!.id,
+      denomination: i.denomination,
+      quantity: i.quantity,
+      direction: "IN" as const,
+    })),
+  ]
+}
+
+/**
  * account_balances.balance already includes this (pre-edit) row's effect,
  * so validating a new amount on update needs that old effect backed out
  * first — mirrors the view's own signed formula per transaction type.
@@ -458,14 +631,29 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
 
   const payload = parseTransactionForm(formData)
 
+  if (payload.type === "INCOME" && payload.category_id) {
+    const { data: category } = await supabase
+      .from("categories")
+      .select("name")
+      .eq("id", payload.category_id)
+      .eq("user_id", user.id)
+      .single()
+
+    if (category?.name === INTEREST_CATEGORY_NAME) {
+      await recordInterestIncome(supabase, user.id, payload)
+      revalidatePath("/", "layout")
+      return "Interest saved to Unallocated Savings"
+    }
+  }
+
   const accountIds = [payload.account_id, payload.destination_account_id].filter(
     (id): id is string => Boolean(id)
   )
   const { data: accountRows } = await supabase
     .from("account_balances")
-    .select("account_id, name, account_type, balance")
+    .select("*")
     .in("account_id", accountIds)
-  const accountById = new Map((accountRows ?? []).map((a) => [a.account_id, a]))
+  const accountById = new Map((accountRows ?? []).map(toAccountBalance).map((a) => [a.account_id, a]))
 
   const sourceType = accountById.get(payload.account_id)?.account_type
   const destType = payload.destination_account_id
@@ -515,6 +703,35 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       payload.amount,
       formData
     )
+  } else if (
+    payload.type === "TRANSFER" &&
+    sourceType &&
+    isPhysicalAccount(sourceType) &&
+    !(destType && isPhysicalAccount(destType))
+  ) {
+    denominationRows = await validatePhysicalTransferOut(
+      supabase,
+      user.id,
+      payload.account_id,
+      sourceType,
+      payload.amount,
+      formData
+    )
+  } else if (
+    payload.type === "TRANSFER" &&
+    destType &&
+    isPhysicalAccount(destType) &&
+    !(sourceType && isPhysicalAccount(sourceType))
+  ) {
+    const otherAccount = await findOtherPhysicalAccount(supabase, user.id, destType)
+    denominationRows = validatePhysicalTransferIn(
+      user.id,
+      payload.destination_account_id!,
+      destType,
+      payload.amount,
+      formData,
+      otherAccount
+    )
   }
 
   // The Hard Floor: an EXPENSE or SAVINGS can never exceed the selected
@@ -530,7 +747,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
   // atomic — a denomination-floor trigger failure rolls back the whole
   // transaction row too, instead of leaving it orphaned with no ledger
   // backing it (see save_transaction_with_denominations migration).
-  const { data: transactionId, error } = await supabase.rpc("save_transaction_with_denominations", {
+  const rpcArgs = {
     p_transaction_id: null,
     p_type: payload.type,
     p_transaction_date: payload.transaction_date,
@@ -548,7 +765,11 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       quantity,
       direction,
     })),
-  })
+  } satisfies SaveTransactionArgs
+  const { data: transactionId, error } = await supabase.rpc(
+    "save_transaction_with_denominations",
+    rpcArgs as unknown as Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]
+  )
   if (error) throw new Error(error.message)
 
   if (payload.type === "SAVINGS") {
@@ -583,9 +804,9 @@ export async function updateTransaction(transactionId: string, formData: FormDat
     )
     const { data: accountRows } = await supabase
       .from("account_balances")
-      .select("account_id, name, account_type, balance")
+      .select("*")
       .in("account_id", accountIds)
-    const accountById = new Map((accountRows ?? []).map((a) => [a.account_id, a]))
+    const accountById = new Map((accountRows ?? []).map(toAccountBalance).map((a) => [a.account_id, a]))
 
     const sourceType = accountById.get(payload.account_id)?.account_type
     const destType = payload.destination_account_id
@@ -637,6 +858,36 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         formData,
         transactionId
       )
+    } else if (
+      payload.type === "TRANSFER" &&
+      sourceType &&
+      isPhysicalAccount(sourceType) &&
+      !(destType && isPhysicalAccount(destType))
+    ) {
+      denominationRows = await validatePhysicalTransferOut(
+        supabase,
+        user.id,
+        payload.account_id,
+        sourceType,
+        payload.amount,
+        formData,
+        transactionId
+      )
+    } else if (
+      payload.type === "TRANSFER" &&
+      destType &&
+      isPhysicalAccount(destType) &&
+      !(sourceType && isPhysicalAccount(sourceType))
+    ) {
+      const otherAccount = await findOtherPhysicalAccount(supabase, user.id, destType)
+      denominationRows = validatePhysicalTransferIn(
+        user.id,
+        payload.destination_account_id!,
+        destType,
+        payload.amount,
+        formData,
+        otherAccount
+      )
     }
 
     if (payload.type === "EXPENSE" || payload.type === "SAVINGS") {
@@ -649,7 +900,7 @@ export async function updateTransaction(transactionId: string, formData: FormDat
 
     // Update + denomination replace happen atomically — see
     // save_transaction_with_denominations migration.
-    const { error } = await supabase.rpc("save_transaction_with_denominations", {
+    const rpcArgs = {
       p_transaction_id: transactionId,
       p_type: payload.type,
       p_transaction_date: payload.transaction_date,
@@ -667,7 +918,11 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         quantity,
         direction,
       })),
-    })
+    } satisfies SaveTransactionArgs
+    const { error } = await supabase.rpc(
+      "save_transaction_with_denominations",
+      rpcArgs as unknown as Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]
+    )
     if (error) throw new Error(error.message)
 
     // Always clear the old allocation first: covers editing the amount of a

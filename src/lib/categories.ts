@@ -1,5 +1,7 @@
-export type CategoryType = "INCOME" | "EXPENSE"
-export type ExpenseClassification = "NEED" | "WANT"
+import type { Database } from "@/types/supabase"
+
+export type CategoryType = Database["public"]["Enums"]["category_type"]
+export type ExpenseClassification = Database["public"]["Enums"]["expense_classification"]
 
 export const DEFAULT_CATEGORIES: {
   name: string
@@ -22,7 +24,7 @@ export const DEFAULT_CATEGORIES: {
 ]
 
 export async function ensureDefaultCategories(
-  supabase: import("@supabase/supabase-js").SupabaseClient,
+  supabase: import("@supabase/supabase-js").SupabaseClient<Database>,
   userId: string
 ) {
   const { count } = await supabase
@@ -38,11 +40,9 @@ export async function ensureDefaultCategories(
 
 export const PHYSICAL_ADJUSTMENT_LOSS_CATEGORY = "Physical Adjustment/Loss"
 export const PHYSICAL_ADJUSTMENT_GAIN_CATEGORY = "Physical Adjustment/Gain"
+export const INTEREST_CATEGORY_NAME = "Interest"
 
-export type Category = {
-  id: string
-  name: string
-  category_type: CategoryType
-  default_expense_classification: ExpenseClassification | null
-  is_active: boolean
-}
+export type Category = Pick<
+  Database["public"]["Tables"]["categories"]["Row"],
+  "id" | "name" | "category_type" | "default_expense_classification" | "is_active"
+>

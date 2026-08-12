@@ -1,3 +1,5 @@
+import type { Database } from "@/types/supabase"
+
 export const DEFAULT_SAVINGS_GOALS: {
   name: string
   is_unallocated: boolean
@@ -11,7 +13,7 @@ export const DEFAULT_SAVINGS_GOALS: {
 ]
 
 export async function ensureDefaultSavingsGoals(
-  supabase: import("@supabase/supabase-js").SupabaseClient,
+  supabase: import("@supabase/supabase-js").SupabaseClient<Database>,
   userId: string
 ) {
   const { count } = await supabase
@@ -25,13 +27,10 @@ export async function ensureDefaultSavingsGoals(
   }
 }
 
-export type SavingsGoal = {
-  id: string
-  name: string
-  target_amount: number | null
-  is_unallocated: boolean
-  is_active: boolean
-}
+export type SavingsGoal = Pick<
+  Database["public"]["Tables"]["savings_goals"]["Row"],
+  "id" | "name" | "target_amount" | "is_unallocated" | "is_active"
+>
 
 /**
  * Splits a SAVINGS transaction evenly across active goals. Each goal's
@@ -66,4 +65,21 @@ export type SavingsGoalBalance = {
   is_unallocated: boolean
   is_active: boolean
   saved_amount: number
+}
+
+/** `savings_goal_balances` is a view; see the comment on `toAccountBalance` for why this exists. */
+export function toSavingsGoalBalance(
+  row: Pick<
+    Database["public"]["Views"]["savings_goal_balances"]["Row"],
+    "savings_goal_id" | "name" | "target_amount" | "is_unallocated" | "is_active" | "saved_amount"
+  >
+): SavingsGoalBalance {
+  return {
+    savings_goal_id: row.savings_goal_id!,
+    name: row.name!,
+    target_amount: row.target_amount,
+    is_unallocated: row.is_unallocated!,
+    is_active: row.is_active!,
+    saved_amount: row.saved_amount!,
+  }
 }

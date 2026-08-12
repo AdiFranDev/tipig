@@ -18,7 +18,7 @@ export function NetCashFlowChart({
   return (
     <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
       <LineChart accessibilityLayer data={data}>
-        <CartesianGrid vertical={false} />
+        <CartesianGrid vertical={false} stroke="var(--surface-line)" />
         <XAxis dataKey="month" tickLine={false} axisLine={false} />
         <ReferenceLine y={0} stroke="var(--border)" />
         <ChartTooltip content={<ChartTooltipContent />} />
