@@ -1,5 +1,6 @@
 "use client"
 
+import { useTheme } from "next-themes"
 import {
   Area,
   AreaChart,
@@ -16,16 +17,27 @@ export type TrendDatum = { month: string; needs: number; wants: number; savings:
 export type CumulativeDatum = { month: string; cumulativeSavings: number; cumulativeExpenses: number }
 export type TopCategoryDatum = { name: string; total: number }
 
-// Recharts' default tooltip is a light-mode white box — override for the dark UI.
-const tooltipStyles = {
-  contentStyle: { backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px", padding: "12px" },
-  labelStyle: { color: "#a1a1aa", fontWeight: 500, paddingBottom: "4px" },
-  itemStyle: { fontSize: "14px" },
+function useTooltipStyles() {
+  const { theme } = useTheme()
+  const isDark = theme === "dark"
+  return {
+    tooltipStyles: {
+      contentStyle: {
+        backgroundColor: isDark ? "#09090b" : "#ffffff",
+        borderColor: isDark ? "#27272a" : "#e4e4e7",
+        borderRadius: "8px",
+        padding: "12px",
+      },
+      labelStyle: { color: isDark ? "#a1a1aa" : "#52525b", fontWeight: 500, paddingBottom: "4px" },
+      itemStyle: { fontSize: "14px" },
+    },
+    cursorFill: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+  }
 }
 
 function ChartBox({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
-    <div className="border border-zinc-800 bg-transparent rounded-xl p-4">
+    <div className="border border-border bg-transparent rounded-xl p-4">
       <h3 className="text-sm font-medium text-foreground mb-2">{title}</h3>
       <ResponsiveContainer width="100%" height={300}>
         {children}
@@ -35,6 +47,7 @@ function ChartBox({ title, children }: Readonly<{ title: string; children: React
 }
 
 export function CumulativeAreaChart({ data }: Readonly<{ data: CumulativeDatum[] }>) {
+  const { tooltipStyles } = useTooltipStyles()
   return (
     <ChartBox title="Cumulative Savings vs Expenses">
       <AreaChart data={data}>
@@ -64,13 +77,14 @@ export function CumulativeAreaChart({ data }: Readonly<{ data: CumulativeDatum[]
 }
 
 export function BudgetSplitBarChart({ data }: Readonly<{ data: TrendDatum[] }>) {
+  const { tooltipStyles, cursorFill } = useTooltipStyles()
   return (
     <ChartBox title="Budget Split (Needs / Wants / Savings)">
       <BarChart data={data}>
         <CartesianGrid vertical={false} stroke="var(--surface-line)" />
         <XAxis dataKey="month" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} width={60} />
-        <Tooltip {...tooltipStyles} />
+        <Tooltip {...tooltipStyles} cursor={{ fill: cursorFill }} />
         <Bar dataKey="needs" name="Needs" stackId="a" fill="var(--chart-2)" />
         <Bar dataKey="wants" name="Wants" stackId="a" fill="var(--chart-3)" />
         <Bar dataKey="savings" name="Savings" stackId="a" fill="var(--chart-4)" />
@@ -80,13 +94,14 @@ export function BudgetSplitBarChart({ data }: Readonly<{ data: TrendDatum[] }>) 
 }
 
 export function TopCategoriesBarChart({ data }: Readonly<{ data: TopCategoryDatum[] }>) {
+  const { tooltipStyles, cursorFill } = useTooltipStyles()
   return (
     <ChartBox title="Top 10 Spending Categories">
       <BarChart data={data} layout="vertical">
         <CartesianGrid horizontal={false} stroke="var(--surface-line)" />
         <XAxis type="number" tickLine={false} axisLine={false} />
         <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={100} />
-        <Tooltip {...tooltipStyles} />
+        <Tooltip {...tooltipStyles} cursor={{ fill: cursorFill }} />
         <Bar dataKey="total" name="Total" fill="var(--chart-2)" radius={4} />
       </BarChart>
     </ChartBox>

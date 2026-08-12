@@ -170,7 +170,7 @@ export default async function AnnualPage({
                   return (
                     <tr
                       key={MONTH_NAMES[i]}
-                      className={`border-b border-border last:border-0 ${isCurrentMonth ? "bg-zinc-900/60" : ""}`}
+                      className={`border-b border-border last:border-0 ${isCurrentMonth ? "bg-muted/60" : ""}`}
                     >
                       <td className="px-(--card-spacing) py-2 text-foreground">{MONTH_NAMES[i]}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-emerald-500">

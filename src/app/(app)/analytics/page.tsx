@@ -120,7 +120,7 @@ export default async function AnalyticsPage({
   }))
 
   return (
-    <div className="space-y-6 bg-zinc-950 px-6 py-6">
+    <div className="space-y-6 px-6 py-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Analytics</h1>
@@ -263,7 +263,7 @@ function StatTile({
   color: string
 }>) {
   return (
-    <Card className="border-zinc-800 bg-transparent">
+    <Card className="border-border bg-transparent">
       <CardHeader>
         <CardDescription className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Icon size={14} className="text-muted-foreground" />

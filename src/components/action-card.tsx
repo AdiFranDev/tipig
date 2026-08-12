@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 export function ActionCard({
@@ -10,22 +9,23 @@ export function ActionCard({
   className,
   ...props
 }: Readonly<{ icon: LucideIcon; title: string; description: string }> &
-  ComponentProps<typeof Card>) {
+  ComponentProps<"button">) {
   return (
-    <Card
+    <button
+      type="button"
       className={cn(
-        "cursor-pointer border border-border bg-transparent transition-colors hover:bg-accent/50",
+        "group/card flex w-full flex-col gap-(--card-spacing) overflow-hidden rounded-xl border border-border bg-transparent py-(--card-spacing) text-left text-sm text-card-foreground [--card-spacing:--spacing(4)] cursor-pointer transition-colors hover:bg-accent/50",
         className
       )}
       {...props}
     >
-      <CardHeader>
+      <div className="grid auto-rows-min items-start gap-1 px-(--card-spacing)">
         <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted">
           <Icon className="size-4 text-primary" />
         </div>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
+        <div className="font-heading text-base leading-snug font-medium">{title}</div>
+        <div className="text-sm text-muted-foreground">{description}</div>
+      </div>
+    </button>
   )
 }

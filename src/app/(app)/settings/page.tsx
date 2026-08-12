@@ -129,7 +129,7 @@ export default async function SettingsPage() {
         </Card>
       </div>
 
-      <Card className="w-full max-w-4xl">
+      <Card className="w-full max-w-none">
         <CardHeader>
           <CardTitle>Add Category</CardTitle>
         </CardHeader>

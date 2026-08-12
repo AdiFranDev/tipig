@@ -43,7 +43,7 @@ export default async function SavingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800 bg-transparent p-4">
+        <div className="rounded-xl border border-border bg-transparent p-4">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Saved Money</p>
           <p className="text-4xl font-light tabular-nums text-foreground">{formatPHP(totalSaved)}</p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -54,11 +54,11 @@ export default async function SavingsPage() {
         </div>
 
         {unallocated && (
-          <div className="rounded-xl border border-zinc-800 bg-transparent p-4">
+          <div className="rounded-xl border border-border bg-transparent p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                 Unallocated Savings
-                <span className="text-[10px] bg-zinc-800 text-muted-foreground px-2 py-0.5 rounded">Auto</span>
+                <span className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded">Auto</span>
               </span>
               <span className="text-4xl font-light tabular-nums text-foreground">
                 {formatPHP(unallocated.saved_amount)}
@@ -141,7 +141,7 @@ function GoalCard({ goal }: Readonly<{ goal: SavingsGoalBalance }>) {
   const archiveWithId = archiveSavingsGoal.bind(null, goal.savings_goal_id)
 
   return (
-    <div className="group rounded-xl border border-zinc-800 bg-transparent p-4">
+    <div className="group rounded-xl border border-border bg-transparent p-4">
       <div className="flex items-center justify-between gap-2">
         <Link
           href={`/savings/${goal.savings_goal_id}/edit`}
@@ -179,7 +179,7 @@ function GoalCard({ goal }: Readonly<{ goal: SavingsGoalBalance }>) {
       </div>
       {percent !== null && (
         <>
-          <div className="h-1.5 w-full bg-zinc-800 rounded-full mt-3">
+          <div className="h-1.5 w-full bg-muted rounded-full mt-3">
             <div className="bg-emerald-500 rounded-full h-full" style={{ width: `${percent}%` }} />
           </div>
           <p className="text-xs text-muted-foreground text-right mt-2">{percent}%</p>

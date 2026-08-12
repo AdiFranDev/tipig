@@ -70,8 +70,9 @@ export function AppSidebar({ email, name }: Readonly<{ email: string; name: stri
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
-  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && search.trim()) {
+  function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (search.trim()) {
       router.push(`/transactions?q=${encodeURIComponent(search.trim())}`)
     }
   }
@@ -89,20 +90,22 @@ export function AppSidebar({ email, name }: Readonly<{ email: string; name: stri
       </SidebarHeader>
 
       <div className="px-2 group-data-[collapsible=icon]:hidden">
-        <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/50 px-2 py-1.5">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex items-center gap-2 rounded-md border border-border bg-muted px-2 py-1.5"
+        >
           <Search size={14} className="shrink-0 text-muted-foreground" />
           <Input
             ref={searchInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
             placeholder="Search ledger"
-            className="h-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+            className="h-auto border-0 bg-transparent p-0 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
           />
-          <kbd className="shrink-0 rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
             ⌘K
           </kbd>
-        </div>
+        </form>
       </div>
 
       <SidebarContent>
@@ -155,7 +158,7 @@ export function AppSidebar({ email, name }: Readonly<{ email: string; name: stri
 
       <SidebarFooter>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-100">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
             {initials}
           </div>
           <div className="flex min-w-0 flex-1 flex-col group-data-[collapsible=icon]:hidden">

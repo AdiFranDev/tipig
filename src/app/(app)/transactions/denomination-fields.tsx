@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatPHP } from "@/lib/format"
 import { denominationFieldName } from "@/lib/denominations"
+import { cn } from "@/lib/utils"
 
 function useQuantities(denominations: readonly number[], initial?: Record<number, number>) {
   const [quantities, setQuantities] = useState<Record<number, number>>(() => initial ?? {})
@@ -18,21 +19,37 @@ function DenominationGrid({
   denominations,
   quantities,
   onChange,
+  variant = "primary",
 }: Readonly<{
   legend: string
   prefix: string
   denominations: readonly number[]
   quantities: Record<number, number>
   onChange: (denomination: number, qty: number) => void
+  variant?: "primary" | "other-account"
 }>) {
   // Captured once on mount — `defaultValue` must never change after an
   // uncontrolled input is initialized, unlike `quantities` (which updates
   // live on every keystroke, driving the Total text below).
   const [initialQuantities] = useState(quantities)
+  const isOtherAccount = variant === "other-account"
 
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-xs font-medium text-muted-foreground">{legend}</legend>
+    <fieldset
+      className={cn(
+        "space-y-2",
+        isOtherAccount && "rounded-md border border-dashed border-border bg-muted/30 p-2"
+      )}
+    >
+      <legend
+        className={
+          isOtherAccount
+            ? "text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            : "text-xs font-medium text-muted-foreground"
+        }
+      >
+        {legend}
+      </legend>
       <div className="grid grid-cols-3 gap-2">
         {denominations.map((d) => (
           <div key={d} className="space-y-1">
@@ -121,6 +138,7 @@ export function ExpenseDenominationFields({
           denominations={otherDenominations}
           quantities={changeOther.quantities}
           onChange={(d, qty) => changeOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+          variant="other-account"
         />
       )}
       {insufficient ? (
@@ -195,6 +213,7 @@ export function IncomeDenominationFields({
           denominations={otherDenominations}
           quantities={receivedOther.quantities}
           onChange={(d, qty) => receivedOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+          variant="other-account"
         />
       )}
       {valid ? (
@@ -299,6 +318,7 @@ export function TransferInDenominationFields({
           denominations={otherDenominations}
           quantities={inOther.quantities}
           onChange={(d, qty) => inOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+          variant="other-account"
         />
       )}
       {valid ? (
