@@ -1,10 +1,9 @@
-export type ScholarshipAllocation = {
-  id: string
-  name: string
-  total_amount: number
-  starting_month: string
-  covered_months: number
-}
+import type { Database } from "@/types/supabase"
+
+export type ScholarshipAllocation = Pick<
+  Database["public"]["Tables"]["scholarship_allocations"]["Row"],
+  "id" | "name" | "total_amount" | "starting_month" | "covered_months"
+>
 
 /** Monthly available allowance = total amount ÷ number of covered months. */
 export function monthlyAllowance(

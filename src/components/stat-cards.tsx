@@ -14,7 +14,7 @@ export function KpiCard({
   emphasize?: boolean
   highlight?: boolean
 }>) {
-  const valueColor = value < 0 ? "text-destructive" : emphasize ? "text-primary" : "text-foreground"
+  const valueColor = value < 0 ? "text-red-500" : emphasize ? "text-primary" : "text-foreground"
 
   return (
     <Card className={highlight ? "border-primary/40 ring-1 ring-primary/15" : undefined}>
@@ -43,16 +43,16 @@ export function MiniStat({
   const color =
     tone === "net"
       ? value > 0
-        ? "text-emerald-600 dark:text-emerald-500"
+        ? "text-emerald-500"
         : value < 0
-          ? "text-destructive"
+          ? "text-red-500"
           : "text-foreground"
       : value < 0
-        ? "text-destructive"
+        ? "text-red-500"
         : tone === "emerald"
-          ? "text-emerald-600 dark:text-emerald-500"
+          ? "text-emerald-500"
           : tone === "destructive"
-            ? "text-destructive"
+            ? "text-red-500"
             : "text-foreground"
 
   return (
@@ -60,23 +60,6 @@ export function MiniStat({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-lg font-semibold tabular-nums ${color}`}>{formatPHP(value)}</p>
       {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-    </div>
-  )
-}
-
-export function BudgetSplitStat({
-  label,
-  percentage,
-  amount,
-  swatch,
-}: Readonly<{ label: string; percentage: number; amount: number; swatch: string }>) {
-  return (
-    <div>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className={`size-2 rounded-full ${swatch}`} />
-        {label} ({percentage}%)
-      </p>
-      <p className="text-lg font-semibold tabular-nums text-foreground">{formatPHP(amount)}</p>
     </div>
   )
 }

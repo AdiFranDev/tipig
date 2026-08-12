@@ -1,10 +1,12 @@
-export const TRANSACTION_TYPES = ["INCOME", "EXPENSE", "SAVINGS", "TRANSFER"] as const
+import type { Database } from "@/types/supabase"
+
+export const TRANSACTION_TYPES = ["INCOME", "EXPENSE", "SAVINGS", "TRANSFER"] as const satisfies readonly Database["public"]["Enums"]["transaction_type"][]
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
-export const EXPENSE_CLASSIFICATIONS = ["NEED", "WANT"] as const
+export const EXPENSE_CLASSIFICATIONS = ["NEED", "WANT"] as const satisfies readonly Database["public"]["Enums"]["expense_classification"][]
 export type ExpenseClassification = (typeof EXPENSE_CLASSIFICATIONS)[number]
 
-export const FUNDING_SOURCES = ["AVAILABLE_MONEY", "SAVED_MONEY"] as const
+export const FUNDING_SOURCES = ["AVAILABLE_MONEY", "SAVED_MONEY"] as const satisfies readonly Database["public"]["Enums"]["funding_source"][]
 export type FundingSource = (typeof FUNDING_SOURCES)[number]
 
 export type TransactionDetail = {
@@ -23,6 +25,50 @@ export type TransactionDetail = {
   funding_source: FundingSource | null
   savings_goal_id: string | null
   savings_goal_name: string | null
+}
+
+/**
+ * `transaction_details` is a view; see the comment on `toAccountBalance` in
+ * accounts.ts for why generated types mark every column nullable here even
+ * though the core transaction fields are always populated.
+ */
+export function toTransactionDetail(
+  row: Pick<
+    Database["public"]["Views"]["transaction_details"]["Row"],
+    | "id"
+    | "transaction_date"
+    | "type"
+    | "amount"
+    | "description"
+    | "account_id"
+    | "account_name"
+    | "destination_account_id"
+    | "destination_account_name"
+    | "category_id"
+    | "category_name"
+    | "expense_classification"
+    | "funding_source"
+    | "savings_goal_id"
+    | "savings_goal_name"
+  >
+): TransactionDetail {
+  return {
+    id: row.id!,
+    transaction_date: row.transaction_date!,
+    type: row.type!,
+    amount: row.amount!,
+    description: row.description,
+    account_id: row.account_id,
+    account_name: row.account_name,
+    destination_account_id: row.destination_account_id,
+    destination_account_name: row.destination_account_name,
+    category_id: row.category_id,
+    category_name: row.category_name,
+    expense_classification: row.expense_classification,
+    funding_source: row.funding_source,
+    savings_goal_id: row.savings_goal_id,
+    savings_goal_name: row.savings_goal_name,
+  }
 }
 
 /** "YYYY-MM" for the given date, defaulting to today. */
@@ -58,4 +104,17 @@ export function aggregateByType(transactions: { type: TransactionType; amount: n
   // Transfers and savings allocations never touch net cash flow — they
   // move money between accounts/goals, they don't create or consume it.
   return { income, expense, savings, netCashFlow: income - expense }
+}
+
+/**
+ * An EXPENSE paid from Saved Money is a withdrawal from a goal that was
+ * already funded in a prior period — including it in this month's budget
+ * metrics (Total Expenses, Needs/Wants, Net Cash Flow) would double-count
+ * money already accounted for as savings. Callers computing monthly budget
+ * aggregates should filter through this before summing.
+ */
+export function excludeSavedExpenses<T extends { type: TransactionType; funding_source?: FundingSource | null }>(
+  transactions: T[]
+): T[] {
+  return transactions.filter((t) => !(t.type === "EXPENSE" && t.funding_source === "SAVED_MONEY"))
 }

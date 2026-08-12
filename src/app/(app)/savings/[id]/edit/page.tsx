@@ -25,7 +25,7 @@ export default async function EditSavingsGoalPage({
   const updateWithId = updateSavingsGoal.bind(null, goal.id)
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl space-y-6 px-6 py-6">
       <h1 className="text-2xl font-semibold text-foreground">Edit Savings Goal</h1>
 
       <Card>

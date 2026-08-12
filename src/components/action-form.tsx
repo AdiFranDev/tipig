@@ -13,13 +13,15 @@ export function ActionForm({
   successMessage,
   className,
   children,
+  onSuccess,
 }: Readonly<{
   action: (formData: FormData) => Promise<ActionResult>
   successMessage?: string
   className?: string
   children: React.ReactNode
+  onSuccess?: () => void
 }>) {
-  const [formAction] = useActionToast(action, successMessage)
+  const [formAction] = useActionToast(action, successMessage, onSuccess)
 
   return (
     <form action={formAction} className={className}>

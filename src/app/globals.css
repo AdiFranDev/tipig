@@ -117,6 +117,20 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Bento overhaul surface vocabulary — see .agents/ui/IMPLEMENTATION.md Step 1. */
+  --surface-canvas: var(--color-zinc-950);
+  --surface-card: color-mix(in oklch, var(--color-zinc-900) 30%, transparent);
+  --surface-raised: var(--color-zinc-900);
+  --surface-line: var(--color-zinc-800);
+
+  --card: var(--surface-card);
+  --border: var(--surface-line);
+
+  /* Sidebar shell reuses the same flat surface vocabulary as the rest of the app. */
+  --sidebar: var(--surface-canvas);
+  --sidebar-accent: color-mix(in oklch, var(--color-zinc-900) 50%, transparent);
+  --sidebar-border: var(--surface-line);
 }
 
 @layer base {

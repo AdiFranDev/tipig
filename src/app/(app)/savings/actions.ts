@@ -64,11 +64,9 @@ export async function updateSavingsGoal(goalId: string, formData: FormData): Pro
     // stay active as the remainder catch-all), so don't read it from the form.
     const is_active = goal.is_unallocated ? true : formData.get("is_active") === "on"
 
-    const patch: Record<string, unknown> = { name, target_amount, is_active }
-
     const { error } = await supabase
       .from("savings_goals")
-      .update(patch)
+      .update({ name, target_amount, is_active })
       .eq("id", goalId)
       .eq("user_id", user.id)
     if (error) throw new Error(error.message)

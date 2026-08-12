@@ -16,9 +16,9 @@ export function DenominationBarChart({
   }))
 
   return (
-    <ChartContainer config={chartConfig} className="aspect-auto h-40 w-full">
+    <ChartContainer config={chartConfig} className="aspect-auto h-36 w-full">
       <BarChart accessibilityLayer data={chartData}>
-        <CartesianGrid vertical={false} />
+        <CartesianGrid vertical={false} stroke="var(--surface-line)" />
         <XAxis dataKey="label" tickLine={false} axisLine={false} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={24} />
         <ChartTooltip content={<ChartTooltipContent />} />

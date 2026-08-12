@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isPhysicalAccount } from "@/lib/accounts"
-import { denominationsFor, denominationFieldName, type DenominationBalance } from "@/lib/denominations"
+import { denominationsFor, denominationFieldName, toDenominationBalance } from "@/lib/denominations"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,16 +26,16 @@ export default async function ReconcileAccountPage({
   const denominations = denominationsFor(account.account_type)
   const { data: balancesData } = await supabase
     .from("denomination_balances")
-    .select("denomination, on_hand")
+    .select("*")
     .eq("account_id", id)
 
-  const balances = (balancesData ?? []) as DenominationBalance[]
+  const balances = (balancesData ?? []).map(toDenominationBalance)
   const onHand = new Map(balances.map((b) => [b.denomination, b.on_hand]))
 
   const reconcileWithId = reconcilePhysicalCash.bind(null, account.id)
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl space-y-6 px-6 py-6">
       <h1 className="text-2xl font-semibold text-foreground">Reconcile {account.name}</h1>
 
       <Card>

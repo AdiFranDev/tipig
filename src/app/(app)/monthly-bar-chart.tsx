@@ -33,9 +33,9 @@ export function MonthlyBarChart({
   const data = [{ month, income, needs, wants, savings }]
 
   return (
-    <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
+    <ChartContainer config={chartConfig} className="aspect-auto h-48 w-full">
       <BarChart accessibilityLayer data={data}>
-        <CartesianGrid vertical={false} />
+        <CartesianGrid vertical={false} stroke="var(--surface-line)" />
         <XAxis dataKey="month" tickLine={false} axisLine={false} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />

@@ -37,7 +37,7 @@ export default async function SettingsPage() {
     .select("*")
     .order("name")
 
-  const categories = (categoriesData ?? []) as Category[]
+  const categories: Category[] = categoriesData ?? []
   const incomeCategories = categories.filter((c) => c.category_type === "INCOME" && c.is_active)
   const expenseCategories = categories.filter((c) => c.category_type === "EXPENSE" && c.is_active)
   const archivedCategories = categories.filter((c) => !c.is_active)
@@ -46,29 +46,90 @@ export default async function SettingsPage() {
     .from("scholarship_allocations")
     .select("*")
     .order("starting_month", { ascending: false })
-  const scholarships = (scholarshipsData ?? []) as ScholarshipAllocation[]
+  const scholarships: ScholarshipAllocation[] = scholarshipsData ?? []
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 w-full">
-      <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
+    <div className="flex flex-col gap-8 px-6 py-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Budget Targets</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BudgetRatiosForm
+              needs={settings.needs_target_percentage}
+              wants={settings.wants_target_percentage}
+              savings={settings.savings_target_percentage}
+            />
+          </CardContent>
+        </Card>
 
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Budget Targets</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BudgetRatiosForm
-            needs={settings.needs_target_percentage}
-            wants={settings.wants_target_percentage}
-            savings={settings.savings_target_percentage}
-          />
-        </CardContent>
-      </Card>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Scholarship / Allowance Allocation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {scholarships.length > 0 && (
+              <div className="divide-y divide-border rounded-lg border border-border">
+                {scholarships.map((s) => (
+                  <ScholarshipRow key={s.id} scholarship={s} />
+                ))}
+              </div>
+            )}
+            <ActionForm action={createScholarshipAllocation} successMessage="Allocation added" className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="scholarship_name">Name</Label>
+                <Input
+                  id="scholarship_name"
+                  name="name"
+                  required
+                  placeholder="e.g. 1st Sem AY 2026-2027 Allowance"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="total_amount">Total Amount</Label>
+                  <Input
+                    id="total_amount"
+                    name="total_amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="starting_month">Starting Month</Label>
+                  <Input
+                    id="starting_month"
+                    name="starting_month"
+                    type="month"
+                    required
+                    defaultValue={new Date().toISOString().slice(0, 7)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="covered_months">Covered Months</Label>
+                  <Input
+                    id="covered_months"
+                    name="covered_months"
+                    type="number"
+                    step="1"
+                    min="1"
+                    required
+                    defaultValue={6}
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full">
+                Add Allocation
+              </Button>
+            </ActionForm>
+          </CardContent>
+        </Card>
+      </div>
 
-      <CategoryGroup title="Income Categories" categories={incomeCategories} />
-      <CategoryGroup title="Expense Categories" categories={expenseCategories} />
-
-      <Card className="w-full">
+      <Card className="w-full max-w-4xl">
         <CardHeader>
           <CardTitle>Add Category</CardTitle>
         </CardHeader>
@@ -77,96 +138,37 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      {archivedCategories.length > 0 && (
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Archived Categories
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y divide-border p-0">
-            {archivedCategories.map((c) => {
-              const restoreWithId = restoreCategory.bind(null, c.id)
-              return (
-                <div key={c.id} className="flex items-center gap-2 px-(--card-spacing) py-3">
-                  <span className="min-w-0 flex-1 text-sm font-medium text-muted-foreground truncate">
-                    {c.name}
-                  </span>
-                  <ActionForm action={restoreWithId} successMessage="Category restored">
-                    <Button variant="ghost" size="icon-sm" type="submit" aria-label="Restore category">
-                      <RefreshCcw />
-                    </Button>
-                  </ActionForm>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <CategoryGroup title="Income Categories" categories={incomeCategories} />
+        <CategoryGroup title="Expense Categories" categories={expenseCategories} />
 
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Scholarship / Allowance Allocation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {scholarships.length > 0 && (
-            <div className="divide-y divide-border rounded-lg border border-border">
-              {scholarships.map((s) => (
-                <ScholarshipRow key={s.id} scholarship={s} />
-              ))}
-            </div>
-          )}
-          <ActionForm action={createScholarshipAllocation} successMessage="Allocation added" className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="scholarship_name">Name</Label>
-              <Input
-                id="scholarship_name"
-                name="name"
-                required
-                placeholder="e.g. 1st Sem AY 2026-2027 Allowance"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="total_amount">Total Amount</Label>
-                <Input
-                  id="total_amount"
-                  name="total_amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="starting_month">Starting Month</Label>
-                <Input
-                  id="starting_month"
-                  name="starting_month"
-                  type="month"
-                  required
-                  defaultValue={new Date().toISOString().slice(0, 7)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="covered_months">Covered Months</Label>
-                <Input
-                  id="covered_months"
-                  name="covered_months"
-                  type="number"
-                  step="1"
-                  min="1"
-                  required
-                  defaultValue={6}
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full">
-              Add Allocation
-            </Button>
-          </ActionForm>
-        </CardContent>
-      </Card>
+        {archivedCategories.length > 0 && (
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Archived Categories
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y divide-border p-0">
+              {archivedCategories.map((c) => {
+                const restoreWithId = restoreCategory.bind(null, c.id)
+                return (
+                  <div key={c.id} className="flex items-center gap-2 px-(--card-spacing) py-3">
+                    <span className="min-w-0 flex-1 text-sm font-medium text-muted-foreground truncate">
+                      {c.name}
+                    </span>
+                    <ActionForm action={restoreWithId} successMessage="Category restored">
+                      <Button variant="ghost" size="icon-sm" type="submit" aria-label="Restore category">
+                        <RefreshCcw />
+                      </Button>
+                    </ActionForm>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

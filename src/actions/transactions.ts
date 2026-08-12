@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { monthRange, lastDayOfMonth, aggregateByType } from "@/lib/transactions"
-import { assertSufficientBalance } from "@/lib/accounts"
+import { assertSufficientBalance, toAccountBalance } from "@/lib/accounts"
 import { toActionResult, type ActionResult } from "@/lib/action-result"
 
 export async function sweepMonth(formData: FormData): Promise<ActionResult> {
@@ -100,10 +100,10 @@ export async function quickCoinsExpense(formData: FormData): Promise<ActionResul
     if (!label || !categoryName) throw new Error("Invalid quick entry")
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid amount")
 
-    const [{ data: coinPouch }, { data: category }] = await Promise.all([
+    const [{ data: coinPouchRow }, { data: category }] = await Promise.all([
       supabase
         .from("account_balances")
-        .select("account_id, name, balance")
+        .select("*")
         .eq("user_id", user.id)
         .eq("account_type", "COIN_POUCH")
         .eq("is_active", true)
@@ -118,9 +118,10 @@ export async function quickCoinsExpense(formData: FormData): Promise<ActionResul
         .limit(1)
         .maybeSingle(),
     ])
-    if (!coinPouch) throw new Error("No active Coin Pouch account found")
+    if (!coinPouchRow) throw new Error("No active Coin Pouch account found")
     if (!category) throw new Error(`Category "${categoryName}" not found`)
 
+    const coinPouch = toAccountBalance(coinPouchRow)
     assertSufficientBalance(coinPouch.balance, amount, coinPouch.name)
 
     const { error } = await supabase.from("transactions").insert({
@@ -137,6 +138,6 @@ export async function quickCoinsExpense(formData: FormData): Promise<ActionResul
     if (error) throw new Error(error.message)
 
     revalidatePath("/", "layout")
-    return `Logged ${label} — ₱${amount.toFixed(2)}`
+    return `Logged ${label}: ₱${amount.toFixed(2)}`
   })
 }

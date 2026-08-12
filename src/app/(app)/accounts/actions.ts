@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { toActionResult, type ActionResult } from "@/lib/action-result"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/supabase"
 
 const VALID_TYPES = new Set(ACCOUNT_TYPES.map((t) => t.value))
 
@@ -123,7 +124,7 @@ export async function restoreAccount(accountId: string): Promise<ActionResult> {
 }
 
 async function findOrCreateCategory(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
   name: string,
   categoryType: "INCOME" | "EXPENSE"
@@ -195,13 +196,13 @@ export async function reconcilePhysicalCash(accountId: string, formData: FormDat
     }
 
     if (deltas.length === 0) {
-      throw new Error("No difference from the recorded count — nothing to reconcile")
+      throw new Error("No difference from the recorded count: nothing to reconcile")
     }
 
     const netTotal = Math.round(deltas.reduce((sum, d) => sum + d.denomination * d.delta, 0) * 100) / 100
     if (netTotal === 0) {
       throw new Error(
-        "The counted denominations differ but net to ₱0 — this shortcut doesn't handle same-value swaps"
+        "The counted denominations differ but net to ₱0: this shortcut doesn't handle same-value swaps"
       )
     }
 

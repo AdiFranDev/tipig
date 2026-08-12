@@ -1,20 +1,22 @@
 import Link from "next/link"
+import { Plus, FileText } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
-import { ensureDefaultAccounts, isPhysicalAccount, ACCOUNT_ICONS, type AccountBalance } from "@/lib/accounts"
+import { ensureDefaultAccounts, toAccountBalance } from "@/lib/accounts"
 import { ensureDefaultCategories, type Category } from "@/lib/categories"
-import { ensureDefaultSavingsGoals, type SavingsGoalBalance } from "@/lib/savings"
-import { ensureDefaultSettings } from "@/lib/settings"
+import { ensureDefaultSavingsGoals, toSavingsGoalBalance } from "@/lib/savings"
 import {
   currentMonth,
   monthRange,
   aggregateByType,
+  excludeSavedExpenses,
   TRANSACTION_TYPES,
   EXPENSE_CLASSIFICATIONS,
+  toTransactionDetail,
   type TransactionDetail,
   type TransactionType,
+  type ExpenseClassification,
 } from "@/lib/transactions"
 import { formatPHP, formatEnumLabel } from "@/lib/format"
-import { KpiCard, MiniStat, BudgetSplitStat } from "@/components/stat-cards"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -34,18 +36,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DEFAULT_TX_LIMIT = 5
 const LOAD_MORE_STEP = 5
 
+function isTransactionType(value: string): value is TransactionType {
+  return (TRANSACTION_TYPES as readonly string[]).includes(value)
+}
+
+function isExpenseClassification(value: string): value is ExpenseClassification {
+  return (EXPENSE_CLASSIFICATIONS as readonly string[]).includes(value)
+}
+
 function monthLabel(month: string) {
   const [year, mon] = month.split("-").map(Number)
   return new Date(year, mon - 1, 1).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   })
-}
-
-function adjacentMonth(month: string, delta: number) {
-  const [year, mon] = month.split("-").map(Number)
-  const d = new Date(year, mon - 1 + delta, 1)
-  return currentMonth(d)
 }
 
 type TransactionsSearchParams = {
@@ -91,10 +95,9 @@ export default async function TransactionsPage({
     { data: accountsData },
     { data: categoriesData },
     { data: goalsData },
-    { data: balancesData },
+    { data: accountBalancesData },
     { data: goalBalancesData },
     { data: monthTxData },
-    settings,
   ] = await Promise.all([
     supabase.from("accounts").select("id, name, account_type").eq("is_active", true).order("name"),
     supabase.from("categories").select("*").eq("is_active", true).order("name"),
@@ -103,29 +106,21 @@ export default async function TransactionsPage({
     supabase.from("savings_goal_balances").select("*").eq("is_active", true),
     supabase
       .from("transactions")
-      .select("type, amount, expense_classification")
+      .select("type, amount, funding_source")
       .gte("transaction_date", start)
       .lt("transaction_date", end),
-    ensureDefaultSettings(supabase, user.id),
   ])
 
   const accounts = accountsData ?? []
-  const categories = (categoriesData ?? []) as Category[]
+  const categories: Category[] = categoriesData ?? []
   const goals = goalsData ?? []
-  const accountBalances = (balancesData ?? []) as AccountBalance[]
-  const goalBalances = (goalBalancesData ?? []) as SavingsGoalBalance[]
-
-  const totalMoney = accountBalances.reduce((sum, a) => sum + a.balance, 0)
-  const savedMoney = goalBalances.reduce((sum, g) => sum + g.saved_amount, 0)
-  const availableToSpend = totalMoney - savedMoney
-
-  const { income, expense, savings } = aggregateByType(monthTxData ?? [])
-  const needs = (monthTxData ?? [])
-    .filter((t) => t.type === "EXPENSE" && t.expense_classification === "NEED")
-    .reduce((sum, t) => sum + t.amount, 0)
-  const wants = (monthTxData ?? [])
-    .filter((t) => t.type === "EXPENSE" && t.expense_classification === "WANT")
-    .reduce((sum, t) => sum + t.amount, 0)
+  const accountBalances = (accountBalancesData ?? []).map(toAccountBalance)
+  const goalBalances = (goalBalancesData ?? []).map(toSavingsGoalBalance)
+  const availableToSpend =
+    accountBalances.reduce((sum, a) => sum + a.balance, 0) -
+    goalBalances.reduce((sum, g) => sum + g.saved_amount, 0)
+  const { income, expense, savings } = aggregateByType(excludeSavedExpenses(monthTxData ?? []))
+  const totalEntries = (monthTxData ?? []).length
 
   let txQuery = supabase
     .from("transaction_details")
@@ -134,10 +129,10 @@ export default async function TransactionsPage({
     .lt("transaction_date", end)
 
   if (q) txQuery = txQuery.ilike("description", `%${q}%`)
-  if (typeFilter && (TRANSACTION_TYPES as readonly string[]).includes(typeFilter)) {
+  if (typeFilter && isTransactionType(typeFilter)) {
     txQuery = txQuery.eq("type", typeFilter)
   }
-  if (bucketFilter && (EXPENSE_CLASSIFICATIONS as readonly string[]).includes(bucketFilter)) {
+  if (bucketFilter && isExpenseClassification(bucketFilter)) {
     txQuery = txQuery.eq("expense_classification", bucketFilter)
   }
   if (categoryFilter && UUID_RE.test(categoryFilter)) {
@@ -152,7 +147,7 @@ export default async function TransactionsPage({
     .order("created_at", { ascending: false })
     .range(0, limit) // fetch one extra row past `limit` to detect "has more" without a count query
 
-  const allFetched = (txData ?? []) as TransactionDetail[]
+  const allFetched = (txData ?? []).map(toTransactionDetail)
   const transactions = allFetched.slice(0, limit)
   const hasMore = allFetched.length > limit
   const hasFilters = Boolean(q || typeFilter || bucketFilter || categoryFilter || accountFilter)
@@ -167,56 +162,41 @@ export default async function TransactionsPage({
     return params
   }
 
-  function accountHref(accountId: string) {
-    const params = baseParams()
-    if (accountFilter !== accountId) params.set("account", accountId)
-    return `/transactions?${params.toString()}`
-  }
-
   const loadMoreParams = baseParams()
   if (accountFilter) loadMoreParams.set("account", accountFilter)
   loadMoreParams.set("limit", String(limit + LOAD_MORE_STEP))
   const loadMoreHref = `/transactions?${loadMoreParams.toString()}`
 
-  const digitalBalances = accountBalances.filter((a) => !isPhysicalAccount(a.account_type))
-  const physicalBalances = accountBalances.filter((a) => isPhysicalAccount(a.account_type))
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Transactions</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/transactions?month=${adjacentMonth(month, -1)}`} />}
-          >
-            ‹
-          </Button>
-          <span className="text-sm font-medium text-foreground w-32 text-center">
-            {monthLabel(month)}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/transactions?month=${adjacentMonth(month, 1)}`} />}
-          >
-            ›
-          </Button>
+    <div className="space-y-6 px-6 py-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Transactions</h1>
+          <p className="text-sm text-muted-foreground">
+            {monthLabel(month)} · {totalEntries} entries · the single source of truth
+          </p>
+        </div>
+        <div className="flex items-center gap-6">
+          <HeaderStat label="Income" value={income} color="text-emerald-500" />
+          <HeaderStat label="Expenses" value={expense} color="text-red-500" />
+          <HeaderStat label="Savings" value={savings} color="text-foreground" />
         </div>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[350px_1fr] lg:items-start lg:gap-6 space-y-6 lg:space-y-0">
-        <Card className="max-w-xl">
-          <CardHeader>
-            <CardTitle>Add Transaction</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TransactionForm accounts={accounts} categories={categories} savingsGoals={goals} action={createTransaction} />
-          </CardContent>
-        </Card>
+      <div className="lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-6 space-y-6 lg:space-y-0">
+        <div className="max-w-xl rounded-xl border border-border bg-transparent p-4 lg:sticky lg:top-20">
+          <h2 className="mb-4 flex items-center gap-2 text-base font-medium text-foreground">
+            <Plus size={16} />
+            Add Transaction
+          </h2>
+          <TransactionForm
+            accounts={accounts}
+            categories={categories}
+            savingsGoals={goals}
+            action={createTransaction}
+            availableToSpend={availableToSpend}
+          />
+        </div>
 
         <div className="space-y-6">
           <Card>
@@ -298,105 +278,12 @@ export default async function TransactionsPage({
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <KpiCard label="Total Money" hint="Sum of all active accounts" value={totalMoney} />
-            <KpiCard
-              label="Saved Money"
-              hint={`Across ${goalBalances.length} savings goal${goalBalances.length === 1 ? "" : "s"}`}
-              value={savedMoney}
-            />
-            <KpiCard
-              label="Available to Spend"
-              hint="Total minus saved"
-              value={availableToSpend}
-              emphasize
-              highlight
-            />
-          </div>
-
           <Card>
             <CardHeader>
-              <CardTitle>Budget Split</CardTitle>
-              <CardDescription>
-                If {formatPHP(totalMoney)} followed your Settings targets: a visualization only,
-                nothing is actually divided or moved.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-                <div style={{ width: `${settings.needs_target_percentage}%` }} className="h-full bg-[var(--chart-2)]" />
-                <div style={{ width: `${settings.wants_target_percentage}%` }} className="h-full bg-[var(--chart-3)]" />
-                <div style={{ width: `${settings.savings_target_percentage}%` }} className="h-full bg-[var(--chart-4)]" />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <BudgetSplitStat
-                  label="Needs"
-                  percentage={settings.needs_target_percentage}
-                  amount={(totalMoney * settings.needs_target_percentage) / 100}
-                  swatch="bg-[var(--chart-2)]"
-                />
-                <BudgetSplitStat
-                  label="Wants"
-                  percentage={settings.wants_target_percentage}
-                  amount={(totalMoney * settings.wants_target_percentage) / 100}
-                  swatch="bg-[var(--chart-3)]"
-                />
-                <BudgetSplitStat
-                  label="Savings"
-                  percentage={settings.savings_target_percentage}
-                  amount={(totalMoney * settings.savings_target_percentage) / 100}
-                  swatch="bg-[var(--chart-4)]"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Cash Flow: {monthLabel(month)}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <MiniStat
-                  label="Income"
-                  value={income}
-                  tone="emerald"
-                />
-                <MiniStat
-                  label="Expenses"
-                  value={expense}
-                  tone="destructive"
-                  subtitle={`Needs ${formatPHP(needs)} · Wants ${formatPHP(wants)}`}
-                />
-                <MiniStat label="Savings" value={savings} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Balances</CardTitle>
-              <CardDescription>Current balance, as of now: tap an account to filter below</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-6 sm:grid-cols-2">
-              <AccountBalanceList
-                title="Digital"
-                accounts={digitalBalances}
-                activeAccountId={accountFilter}
-                hrefFor={accountHref}
-              />
-              <AccountBalanceList
-                title="Physical"
-                accounts={physicalBalances}
-                activeAccountId={accountFilter}
-                hrefFor={accountHref}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{monthLabel(month)}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileText size={16} />
+                {monthLabel(month)}
+              </CardTitle>
               {transactions.length > 0 && (
                 <CardDescription>
                   Showing {transactions.length}
@@ -405,13 +292,30 @@ export default async function TransactionsPage({
                 </CardDescription>
               )}
             </CardHeader>
-            <CardContent className="divide-y divide-border p-0">
+            <CardContent className="p-0">
               {transactions.length === 0 ? (
                 <p className="px-(--card-spacing) py-6 text-sm text-muted-foreground">
                   No transactions match.
                 </p>
               ) : (
-                transactions.map((t) => <TransactionRow key={t.id} transaction={t} />)
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[40rem] text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                        <th className="px-(--card-spacing) py-2 font-medium">Date</th>
+                        <th className="px-(--card-spacing) py-2 font-medium">Entry</th>
+                        <th className="px-(--card-spacing) py-2 font-medium">Where</th>
+                        <th className="px-(--card-spacing) py-2 text-right font-medium">Amount</th>
+                        <th className="px-(--card-spacing) py-2" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {transactions.map((t) => (
+                        <TransactionRow key={t.id} transaction={t} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </CardContent>
             {hasMore && (
@@ -428,64 +332,15 @@ export default async function TransactionsPage({
   )
 }
 
-function AccountBalanceList({
-  title,
-  accounts,
-  activeAccountId,
-  hrefFor,
-}: Readonly<{
-  title: string
-  accounts: AccountBalance[]
-  activeAccountId?: string
-  hrefFor: (accountId: string) => string
-}>) {
-  if (accounts.length === 0) {
-    return (
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-          {title}
-        </h3>
-        <p className="text-sm text-muted-foreground">None yet.</p>
-      </div>
-    )
-  }
-
+function HeaderStat({
+  label,
+  value,
+  color,
+}: Readonly<{ label: string; value: number; color: string }>) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        {title}
-      </h3>
-      <ul className="space-y-1">
-        {accounts.map((a) => {
-          const Icon = ACCOUNT_ICONS[a.account_type]
-          const isActive = a.account_id === activeAccountId
-          return (
-            <li key={a.account_id}>
-              {/* Plain anchor (not next/link): forces a full navigation so the
-                  Search & Filter selects re-initialize with the new account
-                  filter instead of keeping their stale defaultValue. */}
-              <a
-                href={hrefFor(a.account_id)}
-                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent ${
-                  isActive ? "bg-accent ring-1 ring-primary/40" : ""
-                }`}
-              >
-                <span className="flex items-center gap-2 text-foreground">
-                  <Icon className="size-4 text-muted-foreground" />
-                  {a.name}
-                </span>
-                <span
-                  className={`tabular-nums font-medium ${
-                    a.balance < 0 ? "text-destructive" : "text-foreground"
-                  }`}
-                >
-                  {formatPHP(a.balance)}
-                </span>
-              </a>
-            </li>
-          )
-        })}
-      </ul>
+      <p className="text-xs uppercase text-muted-foreground">{label}</p>
+      <p className={`text-lg font-semibold tabular-nums ${color}`}>{formatPHP(value)}</p>
     </div>
   )
 }
@@ -501,42 +356,45 @@ function TransactionRow({ transaction: t }: Readonly<{ transaction: TransactionD
   const sign = TYPE_SIGN[t.type]
   const deleteWithId = deleteTransaction.bind(null, t.id)
 
-  const detail =
+  const where =
     t.type === "TRANSFER"
-      ? `${t.account_name} → ${t.destination_account_name}`
+      ? `${t.account_name} : ${t.destination_account_name}`
       : t.type === "SAVINGS"
-        ? `${t.account_name} → ${t.savings_goal_name}`
-        : `${t.category_name} · ${t.account_name}`
+        ? `${t.account_name} : ${t.savings_goal_name}`
+        : `${t.category_name} : ${t.account_name}`
 
   return (
-    <div className="flex items-center justify-between gap-3 px-(--card-spacing) py-3">
-      <Link href={`/transactions/${t.id}/edit`} className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-foreground truncate">
+    <tr>
+      <td className="px-(--card-spacing) py-3 text-sm text-muted-foreground">{t.transaction_date}</td>
+      <td className="px-(--card-spacing) py-3">
+        <Link href={`/transactions/${t.id}/edit`} className="block min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">
             {t.description || t.category_name || t.type}
           </p>
-          <Badge variant="secondary">{t.type}</Badge>
-          {t.expense_classification && (
-            <Badge variant="outline">{t.expense_classification}</Badge>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {t.transaction_date} · {detail}
-        </p>
-      </Link>
-      <span
-        className={`shrink-0 text-sm font-semibold tabular-nums ${
-          sign > 0 ? "text-emerald-600" : sign < 0 ? "text-destructive" : "text-foreground"
-        }`}
-      >
-        {sign > 0 ? "+" : sign < 0 ? "-" : ""}
-        {formatPHP(t.amount)}
-      </span>
-      <ActionForm action={deleteWithId} successMessage="Transaction deleted">
-        <Button variant="ghost" size="icon-sm" type="submit" aria-label="Delete transaction">
-          ×
-        </Button>
-      </ActionForm>
-    </div>
+          <div className="mt-1 flex items-center gap-1.5">
+            <Badge variant="secondary">{t.type}</Badge>
+            {t.expense_classification && <Badge variant="outline">{t.expense_classification}</Badge>}
+          </div>
+        </Link>
+      </td>
+      <td className="px-(--card-spacing) py-3 text-sm text-muted-foreground">{where}</td>
+      <td className="px-(--card-spacing) py-3 text-right">
+        <span
+          className={`shrink-0 text-sm font-semibold tabular-nums ${
+            sign > 0 ? "text-emerald-500" : sign < 0 ? "text-red-500" : "text-foreground"
+          }`}
+        >
+          {sign > 0 ? "+" : sign < 0 ? "-" : ""}
+          {formatPHP(t.amount)}
+        </span>
+      </td>
+      <td className="px-(--card-spacing) py-3 text-right">
+        <ActionForm action={deleteWithId} successMessage="Transaction deleted">
+          <Button variant="ghost" size="icon-sm" type="submit" aria-label="Delete transaction">
+            ×
+          </Button>
+        </ActionForm>
+      </td>
+    </tr>
   )
 }
