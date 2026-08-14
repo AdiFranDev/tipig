@@ -348,15 +348,18 @@ async function validatePhysicalExpense(
   const handed = parseDenominationQuantities(formData, "handed", denominations)
   const changeOwn = parseDenominationQuantities(formData, "change", denominations)
   const otherDenominations = otherAccount ? denominationsFor(otherAccount.type as never) : []
+  const handedOther = otherAccount
+    ? parseDenominationQuantities(formData, "handed_other", otherDenominations)
+    : []
   const changeOther = otherAccount
     ? parseDenominationQuantities(formData, "change_other", otherDenominations)
     : []
 
-  if (handed.length === 0) {
+  if (handed.length === 0 && handedOther.length === 0) {
     throw new Error("Denomination breakdown (handed over) is required for physical cash expenses")
   }
 
-  const handedTotal = totalOf(handed)
+  const handedTotal = Math.round((totalOf(handed) + totalOf(handedOther)) * 100) / 100
   const changeTotal = Math.round((totalOf(changeOwn) + totalOf(changeOther)) * 100) / 100
 
   if (handedTotal < amount) {
@@ -373,11 +376,21 @@ async function validatePhysicalExpense(
   }
 
   await assertDenominationsAvailable(supabase, accountId, handed, excludeTransactionId)
+  if (handedOther.length > 0) {
+    await assertDenominationsAvailable(supabase, otherAccount!.id, handedOther, excludeTransactionId)
+  }
 
   return [
     ...handed.map((h) => ({
       user_id: userId,
       account_id: accountId,
+      denomination: h.denomination,
+      quantity: h.quantity,
+      direction: "OUT" as const,
+    })),
+    ...handedOther.map((h) => ({
+      user_id: userId,
+      account_id: otherAccount!.id,
       denomination: h.denomination,
       quantity: h.quantity,
       direction: "OUT" as const,

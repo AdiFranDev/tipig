@@ -89,6 +89,7 @@ export function ExpenseDenominationFields({
   initialChange,
   otherDenominations,
   otherAccountLabel,
+  initialHandedOverOther,
   initialChangeOther,
   onValidityChange,
 }: Readonly<{
@@ -98,15 +99,18 @@ export function ExpenseDenominationFields({
   initialChange?: Record<number, number>
   otherDenominations?: readonly number[]
   otherAccountLabel?: string
+  initialHandedOverOther?: Record<number, number>
   initialChangeOther?: Record<number, number>
   onValidityChange?: (valid: boolean) => void
 }>) {
-  const handedOver = useQuantities(denominations, initialHandedOver)
+  const handedOverOwn = useQuantities(denominations, initialHandedOver)
+  const handedOverOther = useQuantities(otherDenominations ?? [], initialHandedOverOther)
   const changeOwn = useQuantities(denominations, initialChange)
   const changeOther = useQuantities(otherDenominations ?? [], initialChangeOther)
+  const handedOverTotal = Math.round((handedOverOwn.total + handedOverOther.total) * 100) / 100
   const changeTotal = Math.round((changeOwn.total + changeOther.total) * 100) / 100
-  const expected = Math.round((handedOver.total - amount) * 100) / 100
-  const insufficient = handedOver.total < amount
+  const expected = Math.round((handedOverTotal - amount) * 100) / 100
+  const insufficient = handedOverTotal < amount
   const changeMatches = Math.abs(expected - changeTotal) < 0.001
   const valid = !insufficient && changeMatches
 
@@ -121,9 +125,19 @@ export function ExpenseDenominationFields({
         legend="Handed Over"
         prefix="handed"
         denominations={denominations}
-        quantities={handedOver.quantities}
-        onChange={(d, qty) => handedOver.setQuantities((q) => ({ ...q, [d]: qty }))}
+        quantities={handedOverOwn.quantities}
+        onChange={(d, qty) => handedOverOwn.setQuantities((q) => ({ ...q, [d]: qty }))}
       />
+      {otherDenominations && otherDenominations.length > 0 && (
+        <DenominationGrid
+          legend={`Handed Over (${otherAccountLabel ?? "other"})`}
+          prefix="handed_other"
+          denominations={otherDenominations}
+          quantities={handedOverOther.quantities}
+          onChange={(d, qty) => handedOverOther.setQuantities((q) => ({ ...q, [d]: qty }))}
+          variant="other-account"
+        />
+      )}
       <DenominationGrid
         legend="Change Received"
         prefix="change"
@@ -143,7 +157,7 @@ export function ExpenseDenominationFields({
       )}
       {insufficient ? (
         <p className="text-xs text-destructive">
-          Handed over ({formatPHP(handedOver.total)}) is less than the expense ({formatPHP(amount)}).
+          Handed over ({formatPHP(handedOverTotal)}) is less than the expense ({formatPHP(amount)}).
           Hand over enough to cover it.
         </p>
       ) : (

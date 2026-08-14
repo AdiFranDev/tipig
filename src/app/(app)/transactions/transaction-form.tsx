@@ -204,6 +204,7 @@ export function TransactionForm({
   const initialOutRows = quantitiesFor(defaults?.denominationRows, accountId, "OUT")
   const initialChangeRows = quantitiesFor(defaults?.denominationRows, accountId, "IN")
   const initialChangeOtherRows = quantitiesFor(defaults?.denominationRows, otherPhysicalAccount?.id, "IN")
+  const initialOutOtherRows = quantitiesFor(defaults?.denominationRows, otherPhysicalAccount?.id, "OUT")
   const initialInRows = quantitiesFor(defaults?.denominationRows, destinationAccountId, "IN")
   const initialInOtherRows = quantitiesFor(defaults?.denominationRows, otherPhysicalAccountForDest?.id, "IN")
 
@@ -450,6 +451,7 @@ export function TransactionForm({
             otherPhysicalAccount ? denominationsFor(otherPhysicalAccount.account_type) : undefined
           }
           otherAccountLabel={otherPhysicalAccount?.name}
+          initialHandedOverOther={initialOutOtherRows}
           initialChangeOther={initialChangeOtherRows}
           onValidityChange={setPhysicalValid}
         />
