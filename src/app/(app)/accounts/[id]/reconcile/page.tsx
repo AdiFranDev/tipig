@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { isPhysicalAccount } from "@/lib/accounts"
 import { denominationsFor, denominationFieldName, toDenominationBalance } from "@/lib/denominations"
@@ -14,11 +14,16 @@ export default async function ReconcileAccountPage({
 }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = await params
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
 
   const { data: account } = await supabase
     .from("accounts")
     .select("id, name, account_type")
     .eq("id", id)
+    .eq("user_id", user.id)
     .single()
 
   if (!account || !isPhysicalAccount(account.account_type)) notFound()

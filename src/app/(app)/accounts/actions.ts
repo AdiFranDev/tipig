@@ -1,7 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { ACCOUNT_TYPES, isPhysicalAccount, type AccountType } from "@/lib/accounts"
+import { ACCOUNT_TYPES, isPhysicalAccount, accountTypeLabel, type AccountType } from "@/lib/accounts"
 import { denominationsFor, denominationFieldName } from "@/lib/denominations"
 import {
   PHYSICAL_ADJUSTMENT_LOSS_CATEGORY,
@@ -153,11 +153,28 @@ async function findOrCreateCategory(
 }
 
 /**
+ * Supabase's generated RPC Args type reports every `save_transaction_with_denominations`
+ * parameter as required and non-null even though the Postgres function accepts NULL for
+ * several of them — same widening as `transactions/actions.ts`'s `SaveTransactionArgs`.
+ */
+type SaveTransactionArgs = {
+  [K in keyof Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]]:
+    Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"][K] | null
+}
+
+/**
  * "Physical Adjustment/Loss": reconciles a physical account's denomination
  * ledger to match a real-world count. Per-denomination deltas become IN/OUT
  * ledger rows (so the counted truth replaces the old on-hand figures
  * exactly), and the net peso difference becomes one ordinary EXPENSE (a
  * loss) or INCOME (a gain) transaction — never a silent balance overwrite.
+ *
+ * Strictly 1:1 with the target account's own type — a Paper Cash
+ * reconciliation only ever reads/writes bill denominations, a Coin Pouch
+ * one only coins. There is no cross-account section here (unlike an
+ * EXPENSE's change, which can genuinely land in the complementary account);
+ * `assertOwnDenominations` below is a hard backstop against a row for the
+ * wrong account type ever reaching the ledger.
  */
 export async function reconcilePhysicalCash(accountId: string, formData: FormData): Promise<ActionResult> {
   return toActionResult(async () => {
@@ -199,6 +216,18 @@ export async function reconcilePhysicalCash(accountId: string, formData: FormDat
       throw new Error("No difference from the recorded count: nothing to reconcile")
     }
 
+    // Hard backstop: every delta must be a denomination this account's own
+    // type actually owns (a Paper Cash account_id can never receive a coin
+    // row, and vice versa) — this is what a Coin Pouch <-> Paper Cash
+    // cross-contamination bug would trip.
+    for (const d of deltas) {
+      if (!denominations.includes(d.denomination)) {
+        throw new Error(
+          `₱${d.denomination} does not belong to ${accountTypeLabel(account.account_type)} — refusing to reconcile it into this account`
+        )
+      }
+    }
+
     const netTotal = Math.round(deltas.reduce((sum, d) => sum + d.denomination * d.delta, 0) * 100) / 100
     if (netTotal === 0) {
       throw new Error(
@@ -214,33 +243,30 @@ export async function reconcilePhysicalCash(accountId: string, formData: FormDat
       isLoss ? "EXPENSE" : "INCOME"
     )
 
-    const { data: inserted, error } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: user.id,
-        type: isLoss ? "EXPENSE" : "INCOME",
-        transaction_date: new Date().toISOString().slice(0, 10),
-        amount: Math.abs(netTotal),
-        account_id: accountId,
-        category_id: categoryId,
-        description: "Physical Adjustment",
-        ...(isLoss ? { expense_classification: "NEED", funding_source: "AVAILABLE_MONEY" } : {}),
-      })
-      .select("id")
-      .single()
-    if (error) throw new Error(error.message)
-
-    const { error: denomError } = await supabase.from("transaction_denominations").insert(
-      deltas.map((d) => ({
-        user_id: user.id,
-        transaction_id: inserted.id,
+    const rpcArgs = {
+      p_transaction_id: null,
+      p_type: isLoss ? "EXPENSE" : "INCOME",
+      p_transaction_date: new Date().toISOString().slice(0, 10),
+      p_amount: Math.abs(netTotal),
+      p_description: "Physical Adjustment",
+      p_account_id: accountId,
+      p_destination_account_id: null,
+      p_category_id: categoryId,
+      p_expense_classification: isLoss ? "NEED" : null,
+      p_funding_source: isLoss ? "AVAILABLE_MONEY" : null,
+      p_savings_goal_id: null,
+      p_denomination_rows: deltas.map((d) => ({
         account_id: accountId,
         denomination: d.denomination,
         quantity: Math.abs(d.delta),
         direction: d.delta < 0 ? "OUT" : "IN",
-      }))
+      })),
+    } satisfies SaveTransactionArgs
+    const { error } = await supabase.rpc(
+      "save_transaction_with_denominations",
+      rpcArgs as unknown as Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]
     )
-    if (denomError) throw new Error(denomError.message)
+    if (error) throw new Error(error.message)
 
     revalidatePath("/", "layout")
     redirect("/accounts")

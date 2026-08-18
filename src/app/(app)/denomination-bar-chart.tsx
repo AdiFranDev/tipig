@@ -16,11 +16,17 @@ export function DenominationBarChart({
   }))
 
   return (
-    <ChartContainer config={chartConfig} className="aspect-auto h-36 w-full">
-      <BarChart accessibilityLayer data={chartData}>
+    <ChartContainer config={chartConfig} className="aspect-auto h-36 w-full overflow-visible">
+      <BarChart accessibilityLayer data={chartData} margin={{ top: 20 }}>
         <CartesianGrid vertical={false} stroke="var(--surface-line)" />
         <XAxis dataKey="label" tickLine={false} axisLine={false} />
-        <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={24} />
+        <YAxis
+          allowDecimals={false}
+          tickLine={false}
+          axisLine={false}
+          width={24}
+          domain={[0, "dataMax + 2"]}
+        />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="quantity" fill="var(--color-quantity)" radius={4}>
           <LabelList dataKey="quantity" position="top" className="fill-foreground text-xs" />

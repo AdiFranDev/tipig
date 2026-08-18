@@ -12,7 +12,12 @@ import {
   type FundingSource,
 } from "@/lib/transactions"
 import { computeSavingsSplit } from "@/lib/savings"
-import { isPhysicalAccount, assertSufficientBalance, toAccountBalance } from "@/lib/accounts"
+import {
+  isPhysicalAccount,
+  assertSufficientBalance,
+  toAccountBalance,
+  findOtherPhysicalAccount,
+} from "@/lib/accounts"
 import { INTEREST_CATEGORY_NAME } from "@/lib/categories"
 import { denominationsFor, denominationFieldName } from "@/lib/denominations"
 import { toActionResult, type ActionResult } from "@/lib/action-result"
@@ -301,34 +306,14 @@ async function assertDenominationsAvailable(
 }
 
 /**
- * The complementary physical account (Paper Cash <-> Coin Pouch) — an
- * EXPENSE's change can land here too, e.g. coins as change for a Paper Cash
- * payment. Returns undefined if the user has no active account of that type,
- * in which case change is simply confined to the paying account as before.
- */
-async function findOtherPhysicalAccount(
-  supabase: SupabaseClient,
-  userId: string,
-  accountType: string
-): Promise<{ id: string; type: string } | undefined> {
-  const otherType = accountType === "PAPER_CASH" ? "COIN_POUCH" : "PAPER_CASH"
-  const { data } = await supabase
-    .from("accounts")
-    .select("id, account_type")
-    .eq("user_id", userId)
-    .eq("account_type", otherType)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle()
-  return data ? { id: data.id, type: data.account_type } : undefined
-}
-
-/**
- * Validates a physical EXPENSE's "Direct Payments & Change" breakdown and
- * returns the ledger rows to insert. Runs entirely *before* the parent
- * transaction is written, so a Hard Floor violation or an arithmetic
- * mismatch blocks the whole entry instead of leaving an orphaned
- * transaction row with no denomination backing.
+ * Validates a physical "Direct Payments & Change" breakdown and returns the
+ * ledger rows to insert — used for both an EXPENSE (paying a merchant) and a
+ * SAVINGS allocation drawn from physical cash (setting bills/coins aside for
+ * a goal), since both are the same shape: cash leaves the account, optional
+ * change comes back, and the Hard Floor applies identically either way. Runs
+ * entirely *before* the parent transaction is written, so a Hard Floor
+ * violation or an arithmetic mismatch blocks the whole entry instead of
+ * leaving an orphaned transaction row with no denomination backing.
  *
  * Change can be split across two accounts — `otherAccount`'s denominations
  * (e.g. Coin Pouch coins received as change for a Paper Cash bill) post to
@@ -356,7 +341,7 @@ async function validatePhysicalExpense(
     : []
 
   if (handed.length === 0 && handedOther.length === 0) {
-    throw new Error("Denomination breakdown (handed over) is required for physical cash expenses")
+    throw new Error("Denomination breakdown (handed over) is required for physical cash")
   }
 
   const handedTotal = Math.round((totalOf(handed) + totalOf(handedOther)) * 100) / 100
@@ -364,14 +349,14 @@ async function validatePhysicalExpense(
 
   if (handedTotal < amount) {
     throw new Error(
-      `Handed over (₱${handedTotal}) is less than the expense (₱${amount}). Hand over enough to cover it`
+      `Handed over (₱${handedTotal}) is less than the amount (₱${amount}). Hand over enough to cover it`
     )
   }
 
   const expectedChange = Math.round((handedTotal - amount) * 100) / 100
   if (Math.round((expectedChange - changeTotal) * 100) / 100 !== 0) {
     throw new Error(
-      `Handed over (₱${handedTotal}) minus the expense (₱${amount}) must equal change: expected ₱${expectedChange}, got ₱${changeTotal}`
+      `Handed over (₱${handedTotal}) minus the amount (₱${amount}) must equal change: expected ₱${expectedChange}, got ₱${changeTotal}`
     )
   }
 
@@ -677,7 +662,11 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
   // validated *before* the transaction is written (see the validate*
   // helpers above) — never insert the transaction row first and hope.
   let denominationRows: DenominationRow[] = []
-  if (payload.type === "EXPENSE" && sourceType && isPhysicalAccount(sourceType)) {
+  if (
+    (payload.type === "EXPENSE" || payload.type === "SAVINGS") &&
+    sourceType &&
+    isPhysicalAccount(sourceType)
+  ) {
     const otherAccount = await findOtherPhysicalAccount(supabase, user.id, sourceType)
     denominationRows = await validatePhysicalExpense(
       supabase,
@@ -830,7 +819,11 @@ export async function updateTransaction(transactionId: string, formData: FormDat
     // transaction's own current rows excluded from the inventory check
     // since they're about to be replaced (see assertDenominationsAvailable).
     let denominationRows: DenominationRow[] = []
-    if (payload.type === "EXPENSE" && sourceType && isPhysicalAccount(sourceType)) {
+    if (
+      (payload.type === "EXPENSE" || payload.type === "SAVINGS") &&
+      sourceType &&
+      isPhysicalAccount(sourceType)
+    ) {
       const otherAccount = await findOtherPhysicalAccount(supabase, user.id, sourceType)
       denominationRows = await validatePhysicalExpense(
         supabase,

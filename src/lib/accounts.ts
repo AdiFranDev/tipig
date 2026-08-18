@@ -19,6 +19,28 @@ export function isPhysicalAccount(type: AccountType): boolean {
   return type === "PAPER_CASH" || type === "COIN_POUCH"
 }
 
+/**
+ * The complementary physical account (Paper Cash <-> Coin Pouch) — e.g. an
+ * EXPENSE's change or a reconciliation adjustment can span both. Returns
+ * undefined if the user has no active account of that type.
+ */
+export async function findOtherPhysicalAccount(
+  supabase: import("@supabase/supabase-js").SupabaseClient<Database>,
+  userId: string,
+  accountType: AccountType
+): Promise<{ id: string; type: AccountType } | undefined> {
+  const otherType = accountType === "PAPER_CASH" ? "COIN_POUCH" : "PAPER_CASH"
+  const { data } = await supabase
+    .from("accounts")
+    .select("id, account_type")
+    .eq("user_id", userId)
+    .eq("account_type", otherType)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle()
+  return data ? { id: data.id, type: data.account_type } : undefined
+}
+
 export const ACCOUNT_ICONS: Record<AccountType, typeof Landmark> = {
   DIGITAL_BANK: Landmark,
   TRADITIONAL_BANK: Building2,

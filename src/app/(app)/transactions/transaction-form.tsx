@@ -159,6 +159,11 @@ export function TransactionForm({
   const selectedDestAccount = accounts.find((a) => a.id === destinationAccountId)
   const showExpenseDenoms =
     type === "EXPENSE" && !!selectedAccount && isPhysicalAccount(selectedAccount.account_type)
+  // SAVINGS drawn from a physical account is the same shape as an EXPENSE
+  // (cash leaves the account, optional change comes back) — the Hard Floor
+  // applies just the same, so it reuses ExpenseDenominationFields as-is.
+  const showSavingsDenoms =
+    type === "SAVINGS" && !!selectedAccount && isPhysicalAccount(selectedAccount.account_type)
   const showIncomeDenoms =
     type === "INCOME" && !!selectedAccount && isPhysicalAccount(selectedAccount.account_type)
   const showBreakingBills =
@@ -441,7 +446,7 @@ export function TransactionForm({
         </div>
       )}
 
-      {showExpenseDenoms && selectedAccount && (
+      {(showExpenseDenoms || showSavingsDenoms) && selectedAccount && (
         <ExpenseDenominationFields
           denominations={denominationsFor(selectedAccount.account_type)}
           amount={amount}
@@ -483,6 +488,7 @@ export function TransactionForm({
         }
         disabled={
           (showExpenseDenoms ||
+            showSavingsDenoms ||
             showIncomeDenoms ||
             showBreakingBills ||
             showTransferOut ||
