@@ -619,6 +619,89 @@ function oldEffectOnAccount(
   return 0 // SAVINGS never affects account_balances.balance
 }
 
+/**
+ * The physical-split validators (`validatePhysicalExpense`,
+ * `validateIncomeDenomination`, `validatePhysicalTransferIn`) let a
+ * transaction's denomination breakdown span both physical accounts — e.g.
+ * paying from Paper Cash and getting coin change back into the Coin Pouch.
+ * Those denomination rows already post correctly to whichever account they
+ * belong to, but the *parent* transaction only ever posts its ledger amount
+ * against one `account_id` — the other account's share has no matching
+ * ledger entry, which is exactly the bug this corrects.
+ *
+ * Fixes it with a second, real TRANSFER row moving the cross-account share
+ * from the primary ledger account to the other one (or the reverse, if the
+ * other account net-contributed rather than net-received) — never a bigger
+ * amount on the primary row, since `account_balances` can only credit one
+ * `account_id` per row. Carries no denomination rows of its own (the
+ * existing rows already cover the physical side); it exists purely to
+ * correct the ledger math. Linked back to its parent via
+ * `related_transaction_id` so an edit can find and update/remove it instead
+ * of accumulating duplicates.
+ */
+async function syncCrossAccountTransfer(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  parentTransactionId: string,
+  transactionDate: string,
+  sourceAccountId: string,
+  denominationRows: DenominationRow[]
+): Promise<void> {
+  const otherRows = denominationRows.filter((r) => r.account_id !== sourceAccountId)
+  const otherAccountId = otherRows[0]?.account_id
+
+  const { data: existing } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("related_transaction_id", parentTransactionId)
+    .eq("type", "TRANSFER")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  const otherNet = otherAccountId
+    ? Math.round(
+        otherRows.reduce((sum, r) => sum + (r.direction === "IN" ? 1 : -1) * r.denomination * r.quantity, 0) * 100
+      ) / 100
+    : 0
+
+  if (!otherAccountId || otherNet === 0) {
+    if (existing) await supabase.from("transactions").delete().eq("id", existing.id).eq("user_id", userId)
+    return
+  }
+
+  const [account_id, destination_account_id, amount] =
+    otherNet > 0 ? [sourceAccountId, otherAccountId, otherNet] : [otherAccountId, sourceAccountId, -otherNet]
+
+  const rpcArgs = {
+    p_transaction_id: existing?.id ?? null,
+    p_type: "TRANSFER",
+    p_transaction_date: transactionDate,
+    p_amount: amount,
+    p_description: "Cross-account change (auto)",
+    p_account_id: account_id,
+    p_destination_account_id: destination_account_id,
+    p_category_id: null,
+    p_expense_classification: null,
+    p_funding_source: null,
+    p_savings_goal_id: null,
+    p_denomination_rows: [],
+  } satisfies SaveTransactionArgs
+  const { data: transferId, error } = await supabase.rpc(
+    "save_transaction_with_denominations",
+    rpcArgs as unknown as Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]
+  )
+  if (error) throw new Error(error.message)
+
+  if (!existing) {
+    const { error: linkError } = await supabase
+      .from("transactions")
+      .update({ related_transaction_id: parentTransactionId })
+      .eq("id", transferId)
+      .eq("user_id", userId)
+    if (linkError) throw new Error(linkError.message)
+  }
+}
+
 export async function createTransaction(formData: FormData): Promise<ActionResult> {
   return toActionResult(async () => {
   const supabase = await createClient()
@@ -662,6 +745,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
   // validated *before* the transaction is written (see the validate*
   // helpers above) — never insert the transaction row first and hope.
   let denominationRows: DenominationRow[] = []
+  let crossAccountSourceId: string | null = null
   if (
     (payload.type === "EXPENSE" || payload.type === "SAVINGS") &&
     sourceType &&
@@ -677,6 +761,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       formData,
       otherAccount
     )
+    crossAccountSourceId = payload.account_id
   } else if (payload.type === "INCOME" && sourceType && isPhysicalAccount(sourceType)) {
     const otherAccount = await findOtherPhysicalAccount(supabase, user.id, sourceType)
     denominationRows = validateIncomeDenomination(
@@ -687,6 +772,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       formData,
       otherAccount
     )
+    crossAccountSourceId = payload.account_id
   } else if (
     payload.type === "TRANSFER" &&
     sourceType &&
@@ -734,6 +820,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       formData,
       otherAccount
     )
+    crossAccountSourceId = payload.destination_account_id!
   }
 
   // The Hard Floor: an EXPENSE or SAVINGS can never exceed the selected
@@ -773,6 +860,17 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
     rpcArgs as unknown as Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]
   )
   if (error) throw new Error(error.message)
+
+  if (crossAccountSourceId) {
+    await syncCrossAccountTransfer(
+      supabase,
+      user.id,
+      transactionId,
+      payload.transaction_date,
+      crossAccountSourceId,
+      denominationRows
+    )
+  }
 
   if (payload.type === "SAVINGS") {
     await applySavingsSplit(supabase, user.id, transactionId, payload.amount)
@@ -819,6 +917,7 @@ export async function updateTransaction(transactionId: string, formData: FormDat
     // transaction's own current rows excluded from the inventory check
     // since they're about to be replaced (see assertDenominationsAvailable).
     let denominationRows: DenominationRow[] = []
+    let crossAccountSourceId: string | null = null
     if (
       (payload.type === "EXPENSE" || payload.type === "SAVINGS") &&
       sourceType &&
@@ -835,6 +934,7 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         otherAccount,
         transactionId
       )
+      crossAccountSourceId = payload.account_id
     } else if (payload.type === "INCOME" && sourceType && isPhysicalAccount(sourceType)) {
       const otherAccount = await findOtherPhysicalAccount(supabase, user.id, sourceType)
       denominationRows = validateIncomeDenomination(
@@ -845,6 +945,7 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         formData,
         otherAccount
       )
+      crossAccountSourceId = payload.account_id
     } else if (
       payload.type === "TRANSFER" &&
       sourceType &&
@@ -894,6 +995,7 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         formData,
         otherAccount
       )
+      crossAccountSourceId = payload.destination_account_id!
     }
 
     if (payload.type === "EXPENSE" || payload.type === "SAVINGS") {
@@ -930,6 +1032,17 @@ export async function updateTransaction(transactionId: string, formData: FormDat
       rpcArgs as unknown as Database["public"]["Functions"]["save_transaction_with_denominations"]["Args"]
     )
     if (error) throw new Error(error.message)
+
+    if (crossAccountSourceId) {
+      await syncCrossAccountTransfer(
+        supabase,
+        user.id,
+        transactionId,
+        payload.transaction_date,
+        crossAccountSourceId,
+        denominationRows
+      )
+    }
 
     // Always clear the old allocation first: covers editing the amount of a
     // SAVINGS transaction (needs a fresh split), and switching away from
