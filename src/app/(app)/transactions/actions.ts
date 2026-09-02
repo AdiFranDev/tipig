@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { after } from "next/server"
+import { sendOverdraftWarningEmail } from "@/actions/email-actions"
 import {
   TRANSACTION_TYPES,
   EXPENSE_CLASSIFICATIONS,
@@ -829,7 +831,25 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
   // denominations gets the more specific error first.
   if (payload.type === "EXPENSE" || payload.type === "SAVINGS") {
     const acc = accountById.get(payload.account_id)
-    if (acc) assertSufficientBalance(acc.balance, payload.amount, acc.name)
+    if (acc) {
+      try {
+        assertSufficientBalance(acc.balance, payload.amount, acc.name)
+      } catch (err) {
+        const shortfall = payload.amount - acc.balance
+        let category = payload.type === "SAVINGS" ? "Savings" : "Uncategorized"
+        if (payload.type === "EXPENSE" && payload.category_id) {
+          const { data: categoryRow } = await supabase
+            .from("categories")
+            .select("name")
+            .eq("id", payload.category_id)
+            .eq("user_id", user.id)
+            .single()
+          category = categoryRow?.name ?? category
+        }
+        after(() => sendOverdraftWarningEmail({ attemptedExpense: payload.amount, category, shortfall }))
+        throw err
+      }
+    }
   }
 
   // Both inserts happen inside one Postgres function call so they're
@@ -1002,7 +1022,23 @@ export async function updateTransaction(transactionId: string, formData: FormDat
       const acc = accountById.get(payload.account_id)
       if (acc) {
         const baseline = acc.balance - oldEffectOnAccount(oldRow, payload.account_id)
-        assertSufficientBalance(baseline, payload.amount, acc.name)
+        try {
+          assertSufficientBalance(baseline, payload.amount, acc.name)
+        } catch (err) {
+          const shortfall = payload.amount - baseline
+          let category = payload.type === "SAVINGS" ? "Savings" : "Uncategorized"
+          if (payload.type === "EXPENSE" && payload.category_id) {
+            const { data: categoryRow } = await supabase
+              .from("categories")
+              .select("name")
+              .eq("id", payload.category_id)
+              .eq("user_id", user.id)
+              .single()
+            category = categoryRow?.name ?? category
+          }
+          after(() => sendOverdraftWarningEmail({ attemptedExpense: payload.amount, category, shortfall }))
+          throw err
+        }
       }
     }
 
@@ -1042,6 +1078,18 @@ export async function updateTransaction(transactionId: string, formData: FormDat
         crossAccountSourceId,
         denominationRows
       )
+    } else {
+      // The edit may have removed this transaction's cross-account nature
+      // (e.g. switched to a digital account, or to a breaking-bills TRANSFER,
+      // which is already fully self-contained via its own account_id/
+      // destination_account_id) — clean up any stale linked TRANSFER from
+      // before the edit so it doesn't keep double-counting.
+      const { error: staleLinkError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("related_transaction_id", transactionId)
+        .eq("user_id", user.id)
+      if (staleLinkError) throw new Error(staleLinkError.message)
     }
 
     // Always clear the old allocation first: covers editing the amount of a
@@ -1070,6 +1118,16 @@ export async function deleteTransaction(transactionId: string): Promise<ActionRe
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
+
+    // Delete a linked auto-generated cross-account TRANSFER first — the
+    // related_transaction_id FK is NO ACTION, so deleting the parent while
+    // this still points to it would otherwise fail with a raw FK violation.
+    const { error: linkedError } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("related_transaction_id", transactionId)
+      .eq("user_id", user.id)
+    if (linkedError) throw new Error(linkedError.message)
 
     const { error } = await supabase
       .from("transactions")

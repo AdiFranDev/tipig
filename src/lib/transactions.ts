@@ -85,6 +85,26 @@ export function monthRange(month: string): { start: string; end: string } {
   return { start, end }
 }
 
+/** [start, end) as YYYY-MM-DD, covering the 7 days up to and including today. */
+export function last7Days(date = new Date()): { start: string; end: string } {
+  const toDateString = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  const end = new Date(date)
+  end.setDate(end.getDate() + 1)
+  const start = new Date(date)
+  start.setDate(start.getDate() - 6)
+  return { start: toDateString(start), end: toDateString(end) }
+}
+
+/** [start, end) as YYYY-MM-DD, covering just today. */
+export function todayRange(date = new Date()): { start: string; end: string } {
+  const toDateString = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  const end = new Date(date)
+  end.setDate(end.getDate() + 1)
+  return { start: toDateString(date), end: toDateString(end) }
+}
+
 /** "YYYY-MM-DD" for the last calendar day of the given "YYYY-MM" month. */
 export function lastDayOfMonth(month: string): string {
   const [year, mon] = month.split("-").map(Number)
