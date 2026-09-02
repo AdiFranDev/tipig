@@ -1,7 +1,7 @@
 "use server"
 
 import { createElement } from "react"
-import { resend } from "@/lib/resend"
+import { getResendClient } from "@/lib/resend"
 import { WeeklyDigestEmail } from "@/emails/weekly-digest"
 import { OverdraftWarningEmail } from "@/emails/overdraft-warning"
 import { DailyCheckinEmail } from "@/emails/daily-checkin"
@@ -21,7 +21,7 @@ type OverdraftWarningData = {
 
 export async function sendWeeklyDigestEmail(data: WeeklyDigestData): Promise<ActionResult> {
   return toActionResult(async () => {
-    const { error } = await resend.emails.send({
+    const { error } = await getResendClient().emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: process.env.ALLOWED_EMAIL!,
       subject: "Your Weekly Financial Digest",
@@ -34,7 +34,7 @@ export async function sendWeeklyDigestEmail(data: WeeklyDigestData): Promise<Act
 
 export async function sendOverdraftWarningEmail(data: OverdraftWarningData): Promise<ActionResult> {
   return toActionResult(async () => {
-    const { error } = await resend.emails.send({
+    const { error } = await getResendClient().emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: process.env.ALLOWED_EMAIL!,
       subject: `Overdraft Warning: ${data.category} expense exceeds available funds`,
@@ -53,7 +53,7 @@ type DailyCheckinData = {
 
 export async function sendDailyCheckinEmail(data: DailyCheckinData): Promise<ActionResult> {
   return toActionResult(async () => {
-    const { error } = await resend.emails.send({
+    const { error } = await getResendClient().emails.send({
       from: process.env.RESEND_FROM_EMAIL!,
       to: process.env.ALLOWED_EMAIL!,
       subject: "Daily Tipig Check-in",
